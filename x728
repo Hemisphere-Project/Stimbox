@@ -1,0 +1,27 @@
+#!/bin/bash
+REBOOTPULSEMINIMUM=200
+REBOOTPULSEMAXIMUM=600
+
+GPIO_POWERBTN=5
+echo "Listening Power Button on GPIO $GPIO_POWERBTN ..."
+echo "$GPIO_POWERBTN" > /sys/class/gpio/export
+echo "in" > /sys/class/gpio/gpio$GPIO_POWERBTN/direction
+
+GPIO_BOOT=12
+echo "Setting Boot state to 1 on GPIO $GPIO_BOOT ..."
+echo "$GPIO_BOOT" > /sys/class/gpio/export
+echo "out" > /sys/class/gpio/gpio$GPIO_BOOT/direction
+echo "1" > /sys/class/gpio/gpio$GPIO_BOOT/value
+
+while [ 1 ]; do
+  shutdownSignal=$(cat /sys/class/gpio/gpio$GPIO_POWERBTN/value)
+  if [ $shutdownSignal = 0 ]; then
+    /bin/sleep 0.2
+  else
+    systemctl stop stimbox
+    echo "0" > /sys/class/gpio/gpio$GPIO_BOOT/value
+    poweroff
+    exit
+  fi
+done
+

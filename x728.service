@@ -1,0 +1,11 @@
+[Unit]
+Description=x728 controller
+           
+[Service]
+Type=simple
+ExecStart=x728
+ExecStop=/bin/pkill x728
+Restart=always
+           
+[Install]
+WantedBy=default.target

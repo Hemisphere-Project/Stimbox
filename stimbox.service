@@ -1,0 +1,10 @@
+[Unit]
+Description=Stimbox controller
+           
+[Service]
+Type=simple
+ExecStart=stimbox
+Restart=always
+           
+[Install]
+WantedBy=default.target
