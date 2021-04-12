@@ -1,6 +1,16 @@
 #include <Arduino.h>
 #include <M5Stack.h>
 
+#include <OSCBundle.h>
+#include <SLIPEncodedSerial.h>
+SLIPEncodedSerial SLIPSerial(Serial);
+
+// STATE
+enum State {BOOT, HELLO, STOP, PLAY, PAUSE, EXIT, OFF};
+
+State _state = BOOT;
+int _volume = 100;
+String _media = "";
 
 // CONFIG
 int Brightness = 20;
@@ -73,15 +83,36 @@ void header(uint16_t color) {
 
 }
 
-void control(String txt, uint16_t color) {
-  M5.Lcd.setFreeFont(&FreeSansBold9pt7b);
-  M5.Lcd.setTextColor(TFT_BLACK,    color);
-  M5.Lcd.fillRect(20, 210, 90, 30,  color);
+void setStatus(String status1, String status2="") {
+
+  M5.Lcd.setFreeFont(&FreeSans9pt7b);
+  M5.Lcd.setTextColor(TFT_WHITE, TFT_BLACK);
   M5.Lcd.setTextDatum(TC_DATUM);
-  M5.Lcd.drawString(txt, 65, 216);  
+  M5.Lcd.drawString(status1, 160, 70);
+
+  M5.Lcd.setFreeFont(&FreeSans12pt7b);
+  M5.Lcd.drawString(status2, 160, 120);
+
 }
 
-void volume(uint8_t value) {
+void setCtrl(String txt = "", uint16_t bgColor = TFT_CYAN) {
+
+  M5.Lcd.fillRect(20, 210, 90, 30,  TFT_BLACK); // clear CTRL area
+
+  if (txt != "") 
+  {
+    M5.Lcd.setFreeFont(&FreeSansBold9pt7b);
+    M5.Lcd.setTextDatum(TC_DATUM);
+    M5.Lcd.setTextColor(TFT_BLACK,    bgColor);
+    M5.Lcd.drawString(txt, 65, 216);  
+  }
+
+}
+
+void setVolume(int value) 
+{
+  _volume = value;
+
   M5.Lcd.setFreeFont(&TomThumb);
   M5.Lcd.setTextColor(TFT_DARKGREY, TFT_BLACK);
   M5.Lcd.setTextDatum(TC_DATUM);
@@ -98,101 +129,123 @@ void volume(uint8_t value) {
   M5.Lcd.drawString("+", 255, 222);
 }
 
-void status(String status, String media="") {
 
-  M5.Lcd.setFreeFont(&FreeSans9pt7b);
-  M5.Lcd.setTextColor(TFT_WHITE, TFT_BLACK);
-  M5.Lcd.setTextDatum(TC_DATUM);
-  M5.Lcd.drawString(status, 160, 70);
+void setState(State value) {
 
-  M5.Lcd.setFreeFont(&FreeSans12pt7b);
-  M5.Lcd.drawString(media, 160, 120);
+  _state = value;
+
+  if (_state == BOOT) {
+    M5.Lcd.clear(TFT_BLACK);
+    setStatus("STiMBOX starting..");
+  }
+
+  else if (_state == HELLO) {
+    M5.Lcd.clear(TFT_BLACK);
+    header(TFT_DARKCYAN);
+    setStatus("connected");
+  }
+
+  else if (_state == STOP) 
+  {
+    header(TFT_DARKGREY);
+    setStatus("stopped");
+    setCtrl("PLAY", TFT_DARKGREEN);
+  }
+  else if (_state == PLAY) 
+  {
+    header(TFT_DARKGREEN);
+    setStatus("playing", _media);
+    setCtrl("PAUSE", TFT_YELLOW);
+  }
+  else if (_state == PAUSE) 
+  {
+    header(TFT_YELLOW);
+    setStatus("paused");
+    setCtrl("PLAY", TFT_DARKGREEN);
+  }  
+  else if (_state == EXIT) 
+  {
+    M5.Lcd.clear(TFT_BLACK);
+    header(TFT_CYAN);
+    setStatus("STiMBOX exiting..");
+  }  
+  else if (_state == OFF) 
+  {
+    M5.Lcd.clear(TFT_BLACK);
+    header(TFT_RED);
+    setStatus("shutting down..");
+  }  
 
 }
+
+
+
+
 
 
 void setup() {
 
-  M5.begin();
+  SLIPSerial.begin(115200);
+
+  M5.begin(true, false, false, true);   // LCD : SD : Serial : I2C
   delay(100);
 
+  setState(BOOT);
   Serial.println("starting");
-  
-  // SCREEN
-  M5.Lcd.clear(TFT_BLACK);
-
-  header(TFT_DARKGREEN);
-  control("PLAY", TFT_DARKGREEN);
-  volume(100);
-
-  status("playing", "Super_top_01.wav");
-
-
-  Serial.println("ready");
-
 }
+
 
 void loop() {
 
   M5.update();
 
-  // recvWithStartEndMarkers();
+  OSCBundle bundleIN;
+  int size;
+
+  while(!SLIPSerial.endofPacket())
+    if( (size = SLIPSerial.available()) > 0)
+       while(size--) bundleIN.fill(SLIPSerial.read());
+  
+  if(!bundleIN.hasError()) 
+  {
+
+    bundleIN.dispatch("/hello", [](OSCMessage &msg){
+      setState(HELLO);
+    });
+
+    bundleIN.dispatch("/stopped", [](OSCMessage &msg){
+      setState(STOP);
+    });
+
+    bundleIN.dispatch("/paused", [](OSCMessage &msg){
+      setState(PAUSE);
+    });
+
+    bundleIN.dispatch("/playing", [](OSCMessage &msg){
+      if(msg.isString(0))
+      {
+        int length=msg.getDataLength(0);
+        char str[length];
+        msg.getString(0,str,length);
+        _media = String(str);
+      }
+      setState(PLAY);
+    });
+
+    bundleIN.dispatch("/exit", [](OSCMessage &msg){
+      setState(EXIT);
+    });
+
+    bundleIN.dispatch("/off", [](OSCMessage &msg){
+      setState(OFF);
+    });
+
+    bundleIN.dispatch("/volumeset", [](OSCMessage &msg){
+      if (msg.isInt(0)) 
+        setVolume(msg.getInt(0));
+    });
+
+  }
+
 }
 
-
-// void recvWithStartEndMarkers() 
-// {
-//   static boolean recvInProgress = false;
-//   static byte ndx = 0;
-//   char fluxMarker = '¤';
-//   char splitMarker = '£';
-//   char rc;
-
-//   while (Serial.available() > 0 && newData == false) {
-    
-//     rc = Serial.read();
-    
-//     if (recvInProgress == true) {
-
-//       // End of Line
-//       if (rc == fluxMarker || rc == splitMarker) {
-//         receivedChars[ndx] = '\0'; // terminate the string
-//         ndx = 0;
-
-//         // Draw
-//         String input = String(receivedChars);
-//         if (input.length() != 0) {
-//           // Get args
-//           int input_arg1 = atoi(&input[0]);
-      
-//           // SPECIAL ARGS
-//           if (input_arg1 == 0) M5.Lcd.clear(TFT_BLACK);
-      
-//           // STANDARD TEXT ( Line 1--9 )
-//           else if ((input_arg1 >= 1) && (input_arg1 <= 9)) {
-//             input.remove(0, 1);
-//             int posY = 10 + 13*(input_arg1-1);
-//             drawStringWithSymbol(0, posY, input);
-//           }
-//         }
-
-//         // End of Transmission
-//         if (rc == fluxMarker) recvInProgress = false;
-//       }
-
-//       // Receive in progress
-//       else {
-//         receivedChars[ndx] = rc;
-//         ndx++;
-//         if (ndx >= numChars) ndx = numChars - 1;
-//       }
-      
-//     }
-
-//     else if (rc == fluxMarker) {
-//       recvInProgress = true;
-//       ndx = 0;
-//     }
-//   }
-
-// }
