@@ -52,7 +52,8 @@ class SerialInterface (BaseInterface):
                     # Connect
                     self.serial = serial.Serial(self.port, 115200, timeout=.1)
                     self.log("connected to", self.port, "!")
-                    self.clear()
+                    self.sendState(1)                 
+                    self.emit('connected')
                     
                 except:
                     self.log("connection failed on", self.port)
@@ -76,29 +77,7 @@ class SerialInterface (BaseInterface):
 
                     # REFRESH
                     else:
-                        self.refresh()
                         time.sleep(0.1)
-
-                    # # CLEAR
-                    # if self._hardClear: 
-                    #     self.serial.write( ('¤0').encode() )
-                    #     self._hardClear = False
-
-                    # # WRITE
-                    # say = None
-                    # for i,l in enumerate(self._buffer):
-                    #     if l['dirty']:
-                    #         if not say: say = '¤'
-                    #         else: say += '£'
-                    #         say += str(i+1)
-                    #         say += l['txt'].ljust(26, ' ')
-                    #         l['dirty'] = False
-                    
-                    # if say:
-                    #     # self.log(say.encode())
-                    #     self.serial.write( say.encode() )
-                    #     # self.log(say)
-
 
                 except Exception as e:
                     print(e)
@@ -107,9 +86,13 @@ class SerialInterface (BaseInterface):
                     time.sleep(0.5)
 
     
-    def clear(self):
-        self._hardClear = True
 
-    
-    def refresh(self):
-        pass
+    def sendState(self, value):
+        self.serial.write( ('^S'+str(value)+'^').encode() )
+
+    def sendVolume(self, value):
+        self.serial.write( ('^V'+str(value)+'^').encode() )
+
+    def sendMedia(self, value):
+        self.serial.write( ('^M'+value+'^').encode() )
+        

@@ -17,60 +17,6 @@ int Brightness = 20;
 int longPressDelay = 300;
 int holdRepeatDelay = 100;
 
-// RECV
-const byte numChars = 32;
-char receivedChars[numChars];
-boolean newData = false;
-
-
-// void drawStringWithSymbol( int x, int y, String s) {
-
-//   bool special = false;
-//   bool unifont = false;
-//   bool colored = false;
-
-//   // clear line
-//   u8g2.drawUTF8(x, y, "                      ");
-  
-//   for (int k = 0; k < s.length(); k++) {
-
-//     // engage special
-//     if (s[k] == '^') special = true;
-    
-//     // special engaged
-//     else if (special) {
-//       if (s[k] == '0') u8g2.setDrawColor(1);      // Black BG
-//       else if (s[k] == '1') u8g2.setDrawColor(0); // White BG
-//       else if (s[k] == '2') u8g2.setFont(u8g2_font_open_iconic_embedded_1x_t);
-//       else if (s[k] == '3') u8g2.setFont(u8g2_font_open_iconic_gui_1x_t);
-//       else if (s[k] == '4') u8g2.setFont(u8g2_font_open_iconic_thing_1x_t);
-//       else if (s[k] == '5') u8g2.setFont(u8g2_font_open_iconic_play_1x_t);
-//       else if (s[k] == '6') u8g2.setFont(u8g2_font_open_iconic_arrow_1x_t);
-//       else if (s[k] == '7') u8g2.setFont(u8g2_font_open_iconic_human_1x_t);
-//       else if (s[k] == '8') u8g2.setFont(u8g2_font_open_iconic_mime_1x_t);
-//       else if (s[k] == '9') u8g2.setFont(u8g2_font_open_iconic_www_1x_t);
-      
-//       if (s[k] >= '2') unifont = true;
-//       special = false;
-//     }
-    
-//     // draw next character
-//     else {
-//       x += u8g2.drawUTF8(x, y, String(s[k]).c_str() );
-//       if (unifont) {
-//         x += 5;
-//         u8g2.setFont(u8g2_font_6x12_me);
-//         unifont = false;
-//       }
-//     }
-    
-//   }
-  
-//   u8g2.setDrawColor(1);
-  
-// }
-
-int xpos, ypos;
 
 
 void header(uint16_t color) {
@@ -83,24 +29,35 @@ void header(uint16_t color) {
 
 }
 
-void setStatus(String status1, String status2="") {
+void setStatus(String status1 = "") {
 
-  M5.Lcd.setFreeFont(&FreeSans9pt7b);
-  M5.Lcd.setTextColor(TFT_WHITE, TFT_BLACK);
-  M5.Lcd.setTextDatum(TC_DATUM);
-  M5.Lcd.drawString(status1, 160, 70);
+  M5.Lcd.fillRect(0, 38, 320, 22,  TFT_BLACK);
 
-  M5.Lcd.setFreeFont(&FreeSans12pt7b);
-  M5.Lcd.drawString(status2, 160, 120);
+  if (status1 != "") {
+    M5.Lcd.setFreeFont(&FreeSans9pt7b);
+    M5.Lcd.setTextColor(TFT_WHITE, TFT_BLACK);
+    M5.Lcd.setTextDatum(TC_DATUM);
+    M5.Lcd.drawString(status1, 160, 40);
+  }
+}
 
+void setMedia(String media = "") {
+  
+  M5.Lcd.fillRect(0, 108, 320, 27,  TFT_BLACK);
+
+  if (media != "") {
+    M5.Lcd.setFreeFont(&FreeSans12pt7b);
+    M5.Lcd.setTextColor(TFT_WHITE, TFT_BLACK);
+    M5.Lcd.setTextDatum(TC_DATUM);
+    M5.Lcd.drawString(media, 160, 110);
+  }
 }
 
 void setCtrl(String txt = "", uint16_t bgColor = TFT_CYAN) {
 
-  M5.Lcd.fillRect(20, 210, 90, 30,  TFT_BLACK); // clear CTRL area
-
-  if (txt != "") 
-  {
+  M5.Lcd.fillRect(25, 210, 80, 30,  TFT_BLACK); // clear CTRL area
+  if (txt != "") {
+    M5.Lcd.fillRect(25, 210, 80, 30,  bgColor); 
     M5.Lcd.setFreeFont(&FreeSansBold9pt7b);
     M5.Lcd.setTextDatum(TC_DATUM);
     M5.Lcd.setTextColor(TFT_BLACK,    bgColor);
@@ -142,26 +99,27 @@ void setState(State value) {
   else if (_state == HELLO) {
     M5.Lcd.clear(TFT_BLACK);
     header(TFT_DARKCYAN);
-    setStatus("connected");
+    setStatus("connecting");
   }
 
   else if (_state == STOP) 
   {
-    header(TFT_DARKGREY);
-    setStatus("stopped");
-    setCtrl("PLAY", TFT_DARKGREEN);
+    header(TFT_DARKCYAN);
+    setStatus("ready");
+    setMedia();
+    setCtrl("PLAY", TFT_DARKGREY);
   }
   else if (_state == PLAY) 
   {
     header(TFT_DARKGREEN);
-    setStatus("playing", _media);
-    setCtrl("PAUSE", TFT_YELLOW);
+    setStatus("playing");
+    setCtrl("PAUSE", TFT_DARKGREY);
   }
   else if (_state == PAUSE) 
   {
     header(TFT_YELLOW);
     setStatus("paused");
-    setCtrl("PLAY", TFT_DARKGREEN);
+    setCtrl("PLAY", TFT_DARKGREY);
   }  
   else if (_state == EXIT) 
   {
@@ -173,79 +131,119 @@ void setState(State value) {
   {
     M5.Lcd.clear(TFT_BLACK);
     header(TFT_RED);
-    setStatus("shutting down..");
+    setStatus("system is shutting down..");
   }  
 
 }
 
 
+// RECV
+//
+
+const byte numChars = 64;
+char receivedChars[numChars];
+const char fluxMarker = '^';
+boolean recvInProgress = false;
+byte ndx = 0;
+
+void recvWithStartEndMarkers() 
+{
+
+  while (Serial.available() > 0) {
+    
+    char rc = Serial.read();
+    
+    // CONTINUE 
+    if (recvInProgress == true) 
+    {
+      // Receive
+      if (rc != fluxMarker) 
+      {
+        receivedChars[ndx] = rc;
+        ndx++;
+        if (ndx >= numChars) ndx = numChars - 1;
+      }
+
+      // End
+      else 
+      {
+        recvInProgress = false;
+        receivedChars[ndx] = '\0'; // terminate the string
+
+        // Parse
+        String input = String(receivedChars);
+        if (input.length() != 0) 
+        {
+          char cmd = input.charAt(0);
+          input.remove(0, 1);
+
+          // State
+          if (cmd == 'S')
+            setState( (State)input.toInt() );
+
+          // Volume
+          else if (cmd == 'V')
+            setVolume( input.toInt() );
+          
+          // Media
+          else if (cmd == 'M')
+            setMedia( input );
+        }
+      }
+    }
+
+    // NEW INSTRUCTION 
+    else if (rc == fluxMarker) {
+      recvInProgress = true;
+      ndx = 0;
+    }
+  }
+}
 
 
+// SETUP
+//
 
-
-void setup() {
-
-  SLIPSerial.begin(115200);
+void setup() 
+{
+  Serial.begin(115200);
+  delay(100);
+  Serial.setTimeout(10);
 
   M5.begin(true, false, false, true);   // LCD : SD : Serial : I2C
   delay(100);
-
+  
   setState(BOOT);
-  Serial.println("starting");
 }
 
+// LOOP
+//
 
 void loop() {
 
   M5.update();
 
-  OSCBundle bundleIN;
-  int size;
+  recvWithStartEndMarkers();
 
-  while(!SLIPSerial.endofPacket())
-    if( (size = SLIPSerial.available()) > 0)
-       while(size--) bundleIN.fill(SLIPSerial.read());
-  
-  if(!bundleIN.hasError()) 
+  if (M5.BtnA.wasPressed()) 
   {
+    if (_state == STOP) Serial.println("play");
+    else if (_state == PLAY) Serial.println("pause");
+    else if (_state == PAUSE) Serial.println("resume");
+  }
+  else if (M5.BtnA.pressedFor(500,500)) {
+    if (_state == PLAY || _state == PAUSE) Serial.println("stop");
+  }
+  
+  if (M5.BtnB.wasPressed() || M5.BtnB.pressedFor(300,150) ) {
+    Serial.println("voldown");
+  }
 
-    bundleIN.dispatch("/hello", [](OSCMessage &msg){
-      setState(HELLO);
-    });
-
-    bundleIN.dispatch("/stopped", [](OSCMessage &msg){
-      setState(STOP);
-    });
-
-    bundleIN.dispatch("/paused", [](OSCMessage &msg){
-      setState(PAUSE);
-    });
-
-    bundleIN.dispatch("/playing", [](OSCMessage &msg){
-      if(msg.isString(0))
-      {
-        int length=msg.getDataLength(0);
-        char str[length];
-        msg.getString(0,str,length);
-        _media = String(str);
-      }
-      setState(PLAY);
-    });
-
-    bundleIN.dispatch("/exit", [](OSCMessage &msg){
-      setState(EXIT);
-    });
-
-    bundleIN.dispatch("/off", [](OSCMessage &msg){
-      setState(OFF);
-    });
-
-    bundleIN.dispatch("/volumeset", [](OSCMessage &msg){
-      if (msg.isInt(0)) 
-        setVolume(msg.getInt(0));
-    });
-
+  if (M5.BtnC.wasPressed() || M5.BtnC.pressedFor(300,150) ) {
+    Serial.println("volup");
   }
 
 }
+
+
 
