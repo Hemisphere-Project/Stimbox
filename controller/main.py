@@ -1,11 +1,16 @@
 import time
 import signal
+import os
+from core import CoreInterface
 from usbserial import SerialInterface
+from config import ConfigInterface
+
+# STATE record
+# { 0:BOOT, 1:HELLO, 2:STOP, 3:PLAY, 4:PAUSE, 5:EXIT, 6:OFF};
 
 
-state = 0       # { 0:BOOT, 1:HELLO, 2:STOP, 3:PLAY, 4:PAUSE, 5:EXIT, 6:OFF};
-volume = 80
-
+# EXIT handler
+#
 class GracefulKiller:
     kill_now = False
     def __init__(self):
@@ -14,67 +19,106 @@ class GracefulKiller:
 
     def exit_gracefully(self,signum, frame):
         self.kill_now = True
+      
 
 
 if __name__ == '__main__':
     
     print("\n.:: Stimbox Controller ::.\n")
+    
+    # EXIT handler
     killer = GracefulKiller()
 
-    serial = SerialInterface(None, "ttyUSB")
-    
+    # LOCAL storage 
+    if not os.path.exists('/data/stimbox'):
+        os.makedirs('/data/stimbox')
+
+    # CONFIG
+    config = ConfigInterface('/data/stimbox/config.json')
+
+    # CORE protocol
+    protocol = CoreInterface()
+
+    # SERIAL port to connect M5screen
+    serial = SerialInterface("ttyUSB")
+
+    #
+    # SERIAL events binding
+    #
+
     @serial.on('connected')
     def con(ev, *args):
         time.sleep(1)
-        state = 2
-        serial.sendState(state)
-        serial.sendVolume(volume)
+        serial.sendState(2)
+        serial.sendVolume(config.get("volume"))
 
     @serial.on('volup')
     def volup(ev, *args):
-        global volume
-        volume += 1
-        serial.sendVolume(volume)
+        v = config.get("volume")+1
+        if v > 100: v = 100
+        serial.sendVolume(v)
+        config.set("volume", v)
 
     @serial.on('voldown')
     def volup(ev, *args):
-        global volume
-        volume -= 1
-        serial.sendVolume(volume)
+        v = config.get("volume")-1
+        if v < 0: v = 0
+        serial.sendVolume(v)
+        config.set("volume", v)
 
     @serial.on('play')
     @serial.on('resume')
     def play(ev, *args):
-        state = 3
-        serial.sendState(state)
-        serial.sendMedia("super_genial_0.wav")
+        protocol.playbackStart()
 
     @serial.on('pause')
     def play(ev, *args):
-        state = 4
-        serial.sendState(state)
+        protocol.playbackPause()
 
     @serial.on('stop')
     def play(ev, *args):
-        state = 2
-        serial.sendState(state)
+        protocol.playbackStop()
 
 
+    #
+    # PROTOCOL events binding
+    #
+
+    @protocol.on('playing')
+    def playing(ev, *args):
+        serial.sendState(3)
+
+    @protocol.on('playing-at')
+    def playing(ev, *args):
+        serial.sendMedia(args[0])
+
+    @protocol.on('paused')
+    def playing(ev, *args):
+        serial.sendState(4)
+
+    @protocol.on('stopped')
+    def playing(ev, *args):
+        serial.sendState(2)    
+
+    
+
+    # START
     serial.start()
+    protocol.start()
 
+
+    # WAIT until close
     while not killer.kill_now:
         time.sleep(0.2)
 
-    state = 5
-    serial.sendState(state)
 
-    # Clean close
-    time.sleep(1)
-    #
-
-    state = 6
-    serial.sendState(state)
+    # CLOSE
+    serial.sendState(5)
+    config.flush()
+    time.sleep(0.5)
+    serial.sendState(6)
 
     serial.quit()
+    protocol.quit()
     
     print("\nGoodbye :)")

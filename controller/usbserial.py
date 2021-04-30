@@ -7,8 +7,8 @@ from serial.tools import list_ports
 
 class SerialInterface (BaseInterface):
 
-    def  __init__(self, parent, filter="", maxRetry=0):
-        super(SerialInterface, self).__init__(parent, "Serial")
+    def  __init__(self, filter="", maxRetry=0):
+        super(SerialInterface, self).__init__(None, "Serial")
         self.port = None
         self.serial = None
         self.filter = filter
