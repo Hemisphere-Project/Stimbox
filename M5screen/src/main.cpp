@@ -56,7 +56,7 @@ void setMedia(String media = "") {
 void setProgress(int progress) {
   
   M5.Lcd.fillRect(40, 160, 240, 10, TFT_BLACK);
-  if (progress >= 0) M5.Lcd.progressBar(40, 160, 240, 10, progress);
+  if (progress >= 0) M5.Lcd.progressBar(40, 160, 239, 10, progress);
 
 }
 
