@@ -7,7 +7,17 @@ import soundfile as sf
 import sounddevice as sd
 import time
 
-import RPi.GPIO as GPIO
+import io
+def is_RPI():
+    try:
+        with io.open('/sys/firmware/devicetree/base/model', 'r') as m:
+            if 'raspberry pi' in m.read().lower(): return True
+    except Exception: pass
+    return False
+
+if is_RPI():
+    import RPi.GPIO as GPIO
+
 # import numpy as np
 import pandas as pd
 from threading import Thread, Lock
@@ -40,7 +50,8 @@ class CoreInterface (BaseInterface):
 
     # CORE thread
     def listen(self):
-        GPIO.setmode(GPIO.BOARD)
+        if is_RPI():
+            GPIO.setmode(GPIO.BOARD)
         self.stream = sd.OutputStream(  device = 0, # HifiBerry device
                                         samplerate = 44100, 
                                         channels=2, 
@@ -100,9 +111,10 @@ class sound_trig_Thread(Thread):
         self.current = 0
         self.core = core
 
-        for i in self.core.parralelGPIO:
-            GPIO.setup(i, GPIO.OUT)
-            GPIO.output(i, GPIO.LOW)
+        if is_RPI():
+            for i in self.core.parralelGPIO:
+                GPIO.setup(i, GPIO.OUT)
+                GPIO.output(i, GPIO.LOW)
 
     def get_GPIO_bool(self, trig_value):
         GPIO_trigOn = [a*b for a,b in zip(self.core.parralelGPIO, bitfield(trig_value))]
@@ -145,7 +157,8 @@ class sound_trig_Thread(Thread):
 
             try:
                 self.core.stream.start()
-                GPIO.output(GPIO_trigOn,1)
+                if is_RPI():
+                    GPIO.output(GPIO_trigOn,1)
                 self.core.emit('playing-at', row['Stimulus'], index)
                 self.core.stream.write(sound_data)
                 self.core.stream.stop()
@@ -155,7 +168,8 @@ class sound_trig_Thread(Thread):
             except :
                 return
 
-            GPIO.output(GPIO_trigOn, 0)
+            if is_RPI():
+                GPIO.output(GPIO_trigOn, 0)
             self.core.log('isi:', isi)
             time.sleep(isi)
 
