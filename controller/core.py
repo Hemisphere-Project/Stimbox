@@ -28,7 +28,7 @@ class CoreInterface (BaseInterface):
     def  __init__(self):
         super(CoreInterface, self).__init__(None, "Core")
         self._playing = False
-        self.playframe = pd.read_csv('/data/usb/playframe_ex1.csv')
+        self.playframe = pd.read_csv('/data/usb/playframe.csv')
         self.stim_folder = '/data/usb/stims/'
         self.sound_dtype = 'float32'
         self.emit('init')
@@ -37,7 +37,7 @@ class CoreInterface (BaseInterface):
     # CORE thread
     def listen(self):
         GPIO.setmode(GPIO.BOARD)
-        self.stream = sd.OutputStream(  device = 5, # HifiBerry device
+        self.stream = sd.OutputStream(  device = 0, # HifiBerry device
                                         samplerate = 44100, 
                                         channels=2, 
                                         dtype=self.sound_dtype)
@@ -88,10 +88,11 @@ class sound_trig_Thread(Thread):
         self.lock = Lock()
         self._running = False
         self.current = 0
+        self.core = core
 
         for i in self.core.parralelGPIO:
-            GPIO.setup(i.item(), GPIO.OUT)
-            GPIO.output(i.item(), GPIO.LOW)
+            GPIO.setup(i, GPIO.OUT)
+            GPIO.output(i, GPIO.LOW)
 
     def get_GPIO_bool(self, trig_value):
         list('{0:08b}'.format(trig_value))
