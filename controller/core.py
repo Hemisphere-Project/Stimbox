@@ -106,10 +106,11 @@ class CoreInterface (BaseInterface):
                     raise UsbDriveError(os.path.join(protoFolders[0], self.stim_folder)+":folder not found..")
                 
                 # CHECK ALL STIM FILES
-                for index, row in self.playframe.iterrows():
-                    stim = os.path.join(protoFolders[0], self.stim_folder, row['Stimulus'] + '.wav')
+                stimfiles = list(set([row['Stimulus'] for index, row in self.playframe.iterrows()]))
+                for f in stimfiles:
+                    stim = os.path.join(protoFolders[0], self.stim_folder, f + '.wav')
                     if not os.path.exists(os.path.join(self.base_path,stim)):
-                        raise UsbDriveError("file missing in stims folder:"+row['Stimulus'] + '.wav')
+                        raise UsbDriveError("file missing in stims folder:"+f + '.wav')
                 
                 self.emit('ready', protoFolders[0])
 
