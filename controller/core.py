@@ -42,6 +42,7 @@ class CoreInterface (BaseInterface):
         super(CoreInterface, self).__init__(None, "Core")
         self._playing = False
         self._paused = False
+        self.sound_trig_Thread = None
         self.playframe = pd.read_csv('/data/usb/playframe.csv')
         self.stim_folder = '/data/usb/stims/'
         self.sound_dtype = 'float32'
@@ -91,7 +92,8 @@ class CoreInterface (BaseInterface):
 
 
     def playbackStop(self):
-        self.sound_trig_Thread.stop()
+        if self.sound_trig_Thread:
+            self.sound_trig_Thread.stop()
 
 
     def playbackEnd(self):

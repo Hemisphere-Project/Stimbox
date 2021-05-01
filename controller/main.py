@@ -1,6 +1,7 @@
 import time
 import signal
 import os
+from subprocess import call
 from core import CoreInterface
 from usbserial import SerialInterface
 from config import ConfigInterface
@@ -56,15 +57,17 @@ if __name__ == '__main__':
     def volup(ev, *args):
         v = config.get("volume")+1
         if v > 100: v = 100
-        serial.sendVolume(v)
         config.set("volume", v)
+        call( ("amixer sset 'Digital' "+str(v)+"%").split(" ") )
+        serial.sendVolume(v)
 
     @serial.on('voldown')
     def volup(ev, *args):
         v = config.get("volume")-1
         if v < 0: v = 0
-        serial.sendVolume(v)
         config.set("volume", v)
+        call( ("amixer sset 'Digital' "+str(v)+"%").split(" ") )
+        serial.sendVolume(v)
 
     @serial.on('play')
     def play(ev, *args):
