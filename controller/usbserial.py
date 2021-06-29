@@ -95,4 +95,6 @@ class SerialInterface (BaseInterface):
 
     def sendMedia(self, value):
         self.serial.write( ('^M'+value+'^').encode() )
-        
+    
+    def sendProgress(self, value):
+        self.serial.write( ('^P'+str(value)+'^').encode() )
