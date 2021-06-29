@@ -27,17 +27,22 @@ from module import BaseInterface
 This code is the one used on the Raspberry Pi box (no gui)
 '''  
 
+def bitfield(n):
+    return [n >> i & 1 for i in range(7,-1,-1)]
+
 
 # CORE interface
 #
 class CoreInterface (BaseInterface):
 
-    parralelGPIO = [32,18,36,37,16,33,23,21]
+    parralelGPIO = [16,15,18,19,22,21,24,23]
 
     # CORE init
     def  __init__(self):
         super(CoreInterface, self).__init__(None, "Core")
         self._playing = False
+        self._paused = False
+        self.sound_trig_Thread = None
         self.playframe = pd.read_csv('/data/usb/playframe.csv')
         self.stim_folder = '/data/usb/stims/'
         self.sound_dtype = 'float32'
@@ -73,22 +78,29 @@ class CoreInterface (BaseInterface):
                 self.sound_trig_Thread = sound_trig_Thread(self)
                 self.sound_trig_Thread.start()
                 self._playing = True
+                self._paused = False
                 self.emit('playing')
 
 
     def playbackPause(self):
+        self._paused = True
         self.emit('paused')
-        #TODO
-        pass
+
+    def playbackResume(self):
+        self._paused = False
+        self.emit('resumed')
 
 
     def playbackStop(self):
-        if self._playing:
+        if self.sound_trig_Thread:
             self.sound_trig_Thread.stop()
-            self._playing = False
-            self.emit('stopped')
 
 
+    def playbackEnd(self):
+        self.stream.abort()
+        self._playing = False
+        self._paused = False
+        self.emit('stopped')
 
 
 # Audio Trig thread
@@ -107,11 +119,10 @@ class sound_trig_Thread(Thread):
                 GPIO.output(i, GPIO.LOW)
 
     def get_GPIO_bool(self, trig_value):
-        list('{0:08b}'.format(trig_value))
-        print(list('{0:08b}'.format(trig_value)))
-        # bool_filter = np.array(np.array(list('{0:08b}'.format(trig_value))), dtype=bool)
-        # GPIO_trigOn = self.core.parralelGPIO[bool_filter].tolist()
-        return self.core.parralelGPIO
+        GPIO_trigOn = [a*b for a,b in zip(self.core.parralelGPIO, bitfield(trig_value))]
+        GPIO_trigOn = [g for g in GPIO_trigOn if g > 0]
+        # print(bitfield(trig_value), GPIO_trigOn)
+        return GPIO_trigOn
 
     def running(self):
         with self.lock:
@@ -123,8 +134,15 @@ class sound_trig_Thread(Thread):
             self._running = True
 
         nb_items = self.core.playframe.shape[0]
-
+        
         for index, row in self.core.playframe.iterrows():   #playframe.iloc[self.current:]
+            
+            if self.core._paused:
+                self.core.emit('paused-at', index)
+
+            while self.core._paused and self.running():
+                time.sleep(.1)
+
             if not self.running():
                 self.current = index
                 self.core.emit('stopped-at', index)
@@ -132,7 +150,7 @@ class sound_trig_Thread(Thread):
             
             self.core.emit('progress', int(index*100/nb_items) )
             
-            self.core.log('Reading', row['Stimulus'], 'at index', index)
+            # self.core.log('Reading', row['Stimulus'], 'at index', index)
 
             sound_data, sample_rate = sf.read(self.core.stim_folder + row['Stimulus'] + '.wav')
             sound_data = sound_data.astype(self.core.sound_dtype)
@@ -157,11 +175,16 @@ class sound_trig_Thread(Thread):
             self.core.log('isi:', isi)
             time.sleep(isi)
 
-        self.core.emit('end')
+        if self.running():
+            self.core.emit('progress', 100 )
+
+        self.core.playbackEnd()
+
+        
+        
 
     def stop(self):
         with self.lock:
             self._running = False
-        self.core.stream.abort()
 
     

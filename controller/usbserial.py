@@ -88,11 +88,17 @@ class SerialInterface (BaseInterface):
     
 
     def sendState(self, value):
-        self.serial.write( ('^S'+str(value)+'^').encode() )
+        if self.serial:
+            self.serial.write( ('^S'+str(value)+'^').encode() )
 
     def sendVolume(self, value):
-        self.serial.write( ('^V'+str(value)+'^').encode() )
+        if self.serial:
+            self.serial.write( ('^V'+str(value)+'^').encode() )
 
     def sendMedia(self, value):
-        self.serial.write( ('^M'+value+'^').encode() )
-        
+        if self.serial:
+            self.serial.write( ('^M'+value+'^').encode() )
+    
+    def sendProgress(self, value):
+        if self.serial:
+            self.serial.write( ('^P'+str(value)+'^').encode() )
