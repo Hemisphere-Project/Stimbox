@@ -53,6 +53,13 @@ void setMedia(String media = "") {
   }
 }
 
+void setProgress(int progress) {
+  
+  M5.Lcd.fillRect(40, 160, 240, 10, TFT_BLACK);
+  if (progress >= 0) M5.Lcd.progressBar(40, 160, 239, 10, progress);
+
+}
+
 void setCtrl(String txt = "", uint16_t bgColor = TFT_CYAN) {
 
   M5.Lcd.fillRect(25, 210, 80, 30,  TFT_BLACK); // clear CTRL area
@@ -106,6 +113,7 @@ void setState(State value) {
   {
     header(TFT_DARKCYAN);
     setStatus("ready");
+    setProgress(-1);
     setMedia();
     setCtrl("PLAY", TFT_DARKGREY);
   }
@@ -188,6 +196,11 @@ void recvWithStartEndMarkers()
           // Media
           else if (cmd == 'M')
             setMedia( input );
+
+          // Progress
+          else if (cmd == 'P')
+            setProgress( input.toInt() );
+
         }
       }
     }

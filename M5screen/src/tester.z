@@ -1,0 +1,79 @@
+#include <M5Stack.h>
+
+void setup() 
+{
+  M5.Lcd.begin();
+  M5.Power.begin();
+  M5.Lcd.fillScreen( BLACK );
+  M5.Lcd.setCursor(0, 0);
+  M5.Lcd.setTextColor(YELLOW);  
+  M5.Lcd.setTextSize(2);
+
+  M5.Lcd.fillScreen( BLACK );
+  M5.Lcd.setCursor(0, 0);
+  M5.Lcd.println("M5StackFire I2C Tester");
+    
+  Wire.setClock(100000);
+  Wire.begin();
+
+
+  delay(3000);
+  M5.Lcd.fillScreen( BLACK );
+}
+
+int textColor=YELLOW;
+
+
+uint16_t read_word_data_at(int address, byte reg) {
+  
+  Wire.beginTransmission(address);
+  Wire.write(reg);
+  Wire.endTransmission();
+
+  Wire.requestFrom(address, 2);
+  while (Wire.available() < 2) delay(1);
+  byte gbuf[16];
+  gbuf[0] = Wire.read();
+  gbuf[1] = Wire.read();
+  return ((gbuf[0] << 8) & gbuf[1]);
+}
+
+int address = 0;
+
+void loop() 
+{
+  
+  int error;
+  M5.Lcd.setCursor(0, 0);
+  M5.Lcd.println("scanning Address [HEX]");
+  
+  if (address == 0)
+    for(int addr = 1; addr < 127; addr++ ) 
+    {
+        Wire.beginTransmission(addr);
+        error = Wire.endTransmission();
+        if(error==0)
+        {
+            address = addr;
+            M5.Lcd.print(address);
+            M5.Lcd.println("\n");
+            break;
+        }
+        else {
+            M5.Lcd.printf(" %d", error);
+        }
+        delay(10);
+    }
+
+  if (address > 0) {
+    byte val1 = read_word_data_at(address, 2);
+    M5.Lcd.print("Voltage: "); M5.Lcd.println(val1);
+
+    val1 = read_word_data_at(address, 4);
+    M5.Lcd.print("Capacity: "); M5.Lcd.println(val1);
+  }
+
+  if(textColor==YELLOW) textColor=GREEN;
+  else textColor=YELLOW;
+  M5.Lcd.setTextColor(textColor,BLACK);  
+}

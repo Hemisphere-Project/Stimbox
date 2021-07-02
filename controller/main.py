@@ -1,6 +1,7 @@
 import time
 import signal
 import os
+from subprocess import call
 from core import CoreInterface
 from usbserial import SerialInterface
 from config import ConfigInterface
@@ -56,20 +57,25 @@ if __name__ == '__main__':
     def volup(ev, *args):
         v = config.get("volume")+1
         if v > 100: v = 100
-        serial.sendVolume(v)
         config.set("volume", v)
+        call( ("amixer sset 'Digital' "+str(v)+"%").split(" ") )
+        serial.sendVolume(v)
 
     @serial.on('voldown')
     def volup(ev, *args):
         v = config.get("volume")-1
         if v < 0: v = 0
-        serial.sendVolume(v)
         config.set("volume", v)
+        call( ("amixer sset 'Digital' "+str(v)+"%").split(" ") )
+        serial.sendVolume(v)
 
     @serial.on('play')
-    @serial.on('resume')
     def play(ev, *args):
         protocol.playbackStart()
+
+    @serial.on('resume')
+    def play(ev, *args):
+        protocol.playbackResume()
 
     @serial.on('pause')
     def play(ev, *args):
@@ -85,22 +91,29 @@ if __name__ == '__main__':
     #
 
     @protocol.on('playing')
-    def playing(ev, *args):
+    def fn(ev, *args):
         serial.sendState(3)
 
     @protocol.on('playing-at')
-    def playing(ev, *args):
+    def fn(ev, *args):
         serial.sendMedia(args[0])
 
     @protocol.on('paused')
-    def playing(ev, *args):
+    def fn(ev, *args):
         serial.sendState(4)
 
+    @protocol.on('resumed')
+    def fn(ev, *args):
+        serial.sendState(3)
+
     @protocol.on('stopped')
-    def playing(ev, *args):
+    def fn(ev, *args):
         serial.sendState(2)    
 
-    
+    @protocol.on('progress')
+    def fn(ev, *args):
+        serial.sendProgress(args[0])    
+
 
     # START
     serial.start()
