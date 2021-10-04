@@ -161,7 +161,6 @@ class CoreInterface (BaseInterface):
         self.stream.abort()
         self._playing = False
         self._paused = False
-        self.emit('stopped')
 
 
 # Audio Trig thread
@@ -241,6 +240,7 @@ class sound_trig_Thread(Thread):
             self.core.emit('progress', 100 )
 
         self.core.playbackEnd()
+        self.core.emit('stopped')
 
         
         
