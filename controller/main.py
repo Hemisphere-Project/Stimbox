@@ -89,7 +89,7 @@ if __name__ == '__main__':
     # PROTOCOL events binding
     #
 
-    @protocol.on('checking')
+    @protocol.on('loading')
     def fn(ev, *args):
         serial.sendState(1)
         time.sleep(0.1)
