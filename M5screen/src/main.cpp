@@ -143,7 +143,7 @@ void setState(State value) {
   else if (_state == HELLO) {
     M5.Lcd.clear(TFT_BLACK);
     header(TFT_DARKCYAN);
-    setStatus("connecting");
+    setStatus("checking protocol");
   }
 
   else if (_state == STOP) 

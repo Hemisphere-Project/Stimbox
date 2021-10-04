@@ -89,6 +89,11 @@ if __name__ == '__main__':
     # PROTOCOL events binding
     #
 
+    @protocol.on('checking')
+    def fn(ev, *args):
+        serial.sendState(1)
+        serial.sendMedia(args[0])
+
     @protocol.on('ready')
     def fn(ev, *args):
         serial.sendProtocol(args[0])
