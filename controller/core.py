@@ -81,7 +81,10 @@ class CoreInterface (BaseInterface):
                 continue
 
             try:
-                self.emit("checking", "")
+                # RE-INIT
+                self.playbackStop()
+                self.stream.close()
+                self.emit("loading", "")
 
                 # RESET PATH
                 self.playframe_path = None
@@ -97,7 +100,7 @@ class CoreInterface (BaseInterface):
                 # LOAD PROTOCOL
                 self.playframe_path = os.path.join(self.base_path, protoFolders[0], self.playframe_file)
                 self.playframe = pd.read_csv(self.playframe_path)
-                self.emit("checking", protoFolders[0])
+                self.emit("loading", protoFolders[0])
 
                 # CHECK STIMS PATH
                 self.stim_path = os.path.join(self.base_path, protoFolders[0], self.stim_folder)
