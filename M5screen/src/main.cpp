@@ -6,7 +6,7 @@
 SLIPEncodedSerial SLIPSerial(Serial);
 
 // STATE
-enum State {BOOT, HELLO, STOP, PLAY, PAUSE, EXIT, OFF};
+enum State {BOOT, HELLO, STOP, PLAY, PAUSE, EXIT, OFF, ERROR};
 
 State _state = BOOT;
 int _volume = 100;
@@ -50,6 +50,18 @@ void setMedia(String media = "") {
     M5.Lcd.setTextColor(TFT_WHITE, TFT_BLACK);
     M5.Lcd.setTextDatum(TC_DATUM);
     M5.Lcd.drawString(media, 160, 110);
+  }
+}
+
+void setError(String error = "") {
+  
+  M5.Lcd.fillRect(0, 108, 320, 27,  TFT_BLACK);
+
+  if (error != "") {
+    M5.Lcd.setFreeFont(&FreeSans12pt7b);
+    M5.Lcd.setTextColor(TFT_WHITE, TFT_BLACK);
+    M5.Lcd.setTextDatum(TC_DATUM);
+    M5.Lcd.drawString(error, 160, 110);
   }
 }
 
@@ -140,7 +152,13 @@ void setState(State value) {
     M5.Lcd.clear(TFT_BLACK);
     header(TFT_RED);
     setStatus("system is shutting down..");
-  }  
+  }
+  else if (_state == ERROR) 
+  {
+    M5.Lcd.clear(TFT_BLACK);
+    header(TFT_ORANGE);
+    setStatus("ERROR");
+  }    
 
 }
 
@@ -200,6 +218,12 @@ void recvWithStartEndMarkers()
           // Progress
           else if (cmd == 'P')
             setProgress( input.toInt() );
+
+          // Progress
+          else if (cmd == 'E') {
+            setState( ERROR );
+            setError( input );
+          }
 
         }
       }
