@@ -225,7 +225,9 @@ class sound_trig_Thread(Thread):
                 self.core.stream.write(sound_data)
                 self.core.stream.stop()
             except sd.PortAudioError:
-                self.core.log('PortAudio ERROR:', sd.PortAudioError)
+                self.emit('error', '- PortAudio -', sd.PortAudioError)
+                time.sleep(2.0)
+                self.playbackEnd()
                 return
             except :
                 return

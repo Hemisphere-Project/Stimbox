@@ -139,7 +139,7 @@ if __name__ == '__main__':
         else:
             error = "- Fatal Error -: :sorry..."
         protocol.emit('error', error)
-        time.sleep(3.0)
+        time.sleep(2.0)
     threading.excepthook = excepthook
 
 
