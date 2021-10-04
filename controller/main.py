@@ -7,7 +7,7 @@ from usbserial import SerialInterface
 from config import ConfigInterface
 
 # STATE record
-# { 0:BOOT, 1:HELLO, 2:STOP, 3:PLAY, 4:PAUSE, 5:EXIT, 6:OFF};
+# { 0:BOOT, 1:HELLO, 2:STOP, 3:PLAY, 4:PAUSE, 5:EXIT, 6:OFF, 7:ERROR};
 
 
 # EXIT handler
@@ -37,11 +37,11 @@ if __name__ == '__main__':
     # CONFIG
     config = ConfigInterface('/data/stimbox/config.json')
 
-    # CORE protocol
-    protocol = CoreInterface()
-
     # SERIAL port to connect M5screen
     serial = SerialInterface("ttyUSB")
+
+    # CORE protocol
+    protocol = CoreInterface('/data/usb/playframe.csv', '/data/usb/stims/')
 
     #
     # SERIAL events binding
@@ -113,6 +113,11 @@ if __name__ == '__main__':
     @protocol.on('progress')
     def fn(ev, *args):
         serial.sendProgress(args[0])    
+
+    @protocol.on('error')
+    def fn(ev, *args):
+        serial.sendError(args[0])
+
 
 
     # START

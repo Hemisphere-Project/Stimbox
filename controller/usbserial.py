@@ -102,3 +102,7 @@ class SerialInterface (BaseInterface):
     def sendProgress(self, value):
         if self.serial:
             self.serial.write( ('^P'+str(value)+'^').encode() )
+
+    def sendError(self, value):
+        if self.serial:
+            self.serial.write( ('^E'+value+'^').encode() )

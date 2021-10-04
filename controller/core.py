@@ -6,6 +6,7 @@ import os
 import soundfile as sf
 import sounddevice as sd
 import time
+import re
 
 import io
 def is_RPI():
@@ -38,13 +39,13 @@ class CoreInterface (BaseInterface):
     parralelGPIO = [16,15,18,19,22,21,24,23]
 
     # CORE init
-    def  __init__(self):
+    def  __init__(self, protoCsv, stimsPath):
         super(CoreInterface, self).__init__(None, "Core")
         self._playing = False
         self._paused = False
         self.sound_trig_Thread = None
-        self.playframe = pd.read_csv('/data/usb/playframe.csv')
-        self.stim_folder = '/data/usb/stims/'
+        self.playframe_path = protoCsv
+        self.stim_folder = stimsPath
         self.sound_dtype = 'float32'
         self.emit('init')
 
@@ -57,6 +58,18 @@ class CoreInterface (BaseInterface):
                                         samplerate = 44100, 
                                         channels=2, 
                                         dtype=self.sound_dtype)
+
+        # CHECK PROTOCOL CSV
+        while self.isRunning():
+            try:
+                self.playframe = pd.read_csv(self.playframe_path)
+                break
+            except Exception as e:
+                error = type(e).__name__.replace('Error', '')
+                error += ":"
+                error += re.sub(r'\[.*\] ', '', str(e))
+                self.emit('error', error)
+                time.sleep(2.0)
 
         # WAIT until program exits
         self.emit('ready')
