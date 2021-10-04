@@ -82,6 +82,9 @@ class CoreInterface (BaseInterface):
 
             try:
                 # RE-INIT
+                self.stream.abort()
+                self._playing = False
+                self._paused = False
                 self.emit("loading", "")
 
                 # RESET PATH
