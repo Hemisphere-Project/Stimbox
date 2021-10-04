@@ -88,7 +88,7 @@ class CoreInterface (BaseInterface):
                 # SEARCH PROTOCOL
                 protoFolders = [ p for p in os.listdir(self.base_path) if os.path.exists(os.path.join(self.base_path, p, self.playframe_file)) ]
                 if len(protoFolders) == 0:
-                    raise UsbDriveError("Can't found folder:containing '"+self.playframe_file+"'")
+                    raise UsbDriveError("Can't find folder:containing '"+self.playframe_file+"'")
                 elif len(protoFolders) > 1:
                     raise UsbDriveError("Multiple protocol found.:only one protocol allowed per key !")
                 
