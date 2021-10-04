@@ -32,6 +32,10 @@ def bitfield(n):
     return [n >> i & 1 for i in range(7,-1,-1)]
 
 
+class UsbDriveError(Exception):
+    pass
+
+
 # CORE interface
 #
 class CoreInterface (BaseInterface):
@@ -39,13 +43,18 @@ class CoreInterface (BaseInterface):
     parralelGPIO = [16,15,18,19,22,21,24,23]
 
     # CORE init
-    def  __init__(self, protoCsv, stimsPath):
+    def  __init__(self, basePath, protoCsv, stimsPath):
         super(CoreInterface, self).__init__(None, "Core")
         self._playing = False
         self._paused = False
         self.sound_trig_Thread = None
-        self.playframe_path = protoCsv
+
+        self.base_path = basePath
+        self.playframe_file = protoCsv
+        self.playframe_path = None
         self.stim_folder = stimsPath
+        self.stim_path = None
+
         self.sound_dtype = 'float32'
         self.emit('init')
 
@@ -59,21 +68,55 @@ class CoreInterface (BaseInterface):
                                         channels=2, 
                                         dtype=self.sound_dtype)
 
+        # List directories
+        # protoFolders = [ p for p in next(os.walk(self.base_path))[1] if os.path.exists(os.path.join(p, self.playframe_file))]
+        # print(protoFolders)
+
         # CHECK PROTOCOL CSV
         while self.isRunning():
+
+            # PROTOCOL FOUND -> CONTINUE
+            if self.playframe_path and os.path.exists(self.playframe_path):
+                time.sleep(2.0)
+                continue
+
             try:
+                # RESET PATH
+                self.playframe_path = None
+                self.stim_path = None
+
+                # SEARCH PROTOCOL
+                protoFolders = [ p for p in os.listdir(self.base_path) if os.path.exists(os.path.join(self.base_path, p, self.playframe_file)) ]
+                if len(protoFolders) == 0:
+                    raise UsbDriveError("Can't found folder:containing '"+self.playframe_file+"'")
+                elif len(protoFolders) > 1:
+                    raise UsbDriveError("Multiple protocol found.:only one protocol allowed per key !")
+                
+                # LOAD PROTOCOL
+                self.playframe_path = os.path.join(self.base_path, protoFolders[0], self.playframe_file)
                 self.playframe = pd.read_csv(self.playframe_path)
-                break
+
+                # CHECK STIMS PATH
+                self.stim_path = os.path.join(self.base_path, protoFolders[0], self.stim_folder)
+                if not os.path.exists(self.stim_path):
+                    raise UsbDriveError(os.path.join(protoFolders[0], self.stim_folder)+":folder not found..")
+                
+                # CHECK ALL STIM FILES
+                for index, row in self.playframe.iterrows():
+                    stim = os.path.join(protoFolders[0], self.stim_folder, row['Stimulus'] + '.wav')
+                    if not os.path.exists(os.path.join(self.base_path,stim)):
+                        raise UsbDriveError("file missing in stims folder:"+row['Stimulus'] + '.wav')
+                
+                self.emit('ready', protoFolders[0])
+
+            # EMIT ERROR
             except Exception as e:
-                error = type(e).__name__.replace('Error', '')
-                error += ":"
-                error += re.sub(r'\[.*\] ', '', str(e))
+                self.playframe_path = None
+                error = "- "+type(e).__name__.replace('Error', '')+" -"
+                error += ":"+re.sub(r'\[.*\] ', '', str(e))
                 self.emit('error', error)
                 time.sleep(2.0)
-
-        # WAIT until program exits
-        self.emit('ready')
-        self.stopped.wait()
+        
 
         # CLOSE
         self.playbackStop()
@@ -165,7 +208,8 @@ class sound_trig_Thread(Thread):
             
             # self.core.log('Reading', row['Stimulus'], 'at index', index)
 
-            sound_data, sample_rate = sf.read(self.core.stim_folder + row['Stimulus'] + '.wav')
+            stimpath = os.path.join(self.core.stim_path, row['Stimulus'] + '.wav')
+            sound_data, sample_rate = sf.read(stimpath)
             sound_data = sound_data.astype(self.core.sound_dtype)
             GPIO_trigOn = self.get_GPIO_bool(row['Trigger'])
             isi = round(row['ISI'] * 10**-3, 3)

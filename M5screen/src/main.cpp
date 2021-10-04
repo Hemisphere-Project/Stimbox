@@ -11,12 +11,29 @@ enum State {BOOT, HELLO, STOP, PLAY, PAUSE, EXIT, OFF, ERROR};
 State _state = BOOT;
 int _volume = 100;
 String _media = "";
+String _protocol = "";
 
 // CONFIG
 int Brightness = 20;
 int longPressDelay = 300;
 int holdRepeatDelay = 100;
 
+
+// TOOLS
+String splitedString(String data, char separator, int index)
+{
+  int found = 0;
+  int strIndex[] = {0, -1};
+  int maxIndex = data.length()-1;
+  for(int i=0; i<=maxIndex && found<=index; i++){
+    if(data.charAt(i)==separator || i==maxIndex){
+      found++;
+      strIndex[0] = strIndex[1]+1;
+      strIndex[1] = (i == maxIndex) ? i+1 : i;
+    }
+  }
+  return found>index ? data.substring(strIndex[0], strIndex[1]) : "";
+}
 
 
 void header(uint16_t color) {
@@ -27,6 +44,10 @@ void header(uint16_t color) {
   M5.Lcd.setTextDatum(TC_DATUM);
   M5.Lcd.drawString("STiMBOX", 160, 5);
 
+}
+
+void clearText() {
+  M5.Lcd.fillRect(0, 108, 320, 90,  TFT_BLACK);
 }
 
 void setStatus(String status1 = "") {
@@ -46,7 +67,7 @@ void setMedia(String media = "") {
   M5.Lcd.fillRect(0, 108, 320, 27,  TFT_BLACK);
 
   if (media != "") {
-    M5.Lcd.setFreeFont(&FreeSans12pt7b);
+    M5.Lcd.setFreeFont(&FreeSans9pt7b);
     M5.Lcd.setTextColor(TFT_WHITE, TFT_BLACK);
     M5.Lcd.setTextDatum(TC_DATUM);
     M5.Lcd.drawString(media, 160, 110);
@@ -55,15 +76,19 @@ void setMedia(String media = "") {
 
 void setError(String error = "") {
   
-  M5.Lcd.fillRect(0, 108, 320, 27,  TFT_BLACK);
+  clearText();
 
   if (error != "") {
-    M5.Lcd.setFreeFont(&FreeSans12pt7b);
+    M5.Lcd.setFreeFont(&FreeSans9pt7b);
     M5.Lcd.setTextColor(TFT_WHITE, TFT_BLACK);
     M5.Lcd.setTextDatum(TC_DATUM);
-    M5.Lcd.drawString(error, 160, 110);
+    M5.Lcd.drawString(splitedString(error, ':',0), 160, 110);
+    M5.Lcd.drawString(splitedString(error, ':',1), 160, 135);
+    M5.Lcd.drawString(splitedString(error, ':',2), 160, 160);
   }
 }
+
+
 
 void setProgress(int progress) {
   
@@ -124,9 +149,9 @@ void setState(State value) {
   else if (_state == STOP) 
   {
     header(TFT_DARKCYAN);
-    setStatus("ready");
+    setStatus(_protocol+" ready");
     setProgress(-1);
-    setMedia();
+    clearText();
     setCtrl("PLAY", TFT_DARKGREY);
   }
   else if (_state == PLAY) 
@@ -166,7 +191,7 @@ void setState(State value) {
 // RECV
 //
 
-const byte numChars = 64;
+const byte numChars = 128;
 char receivedChars[numChars];
 const char fluxMarker = '^';
 boolean recvInProgress = false;
@@ -206,6 +231,10 @@ void recvWithStartEndMarkers()
           // State
           if (cmd == 'S')
             setState( (State)input.toInt() );
+
+          // Protocol
+          else if (cmd == 'D')
+            _protocol = input;
 
           // Volume
           else if (cmd == 'V')

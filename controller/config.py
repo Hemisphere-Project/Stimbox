@@ -46,7 +46,7 @@ class ConfigInterface (BaseInterface):
         if forceNow:
             self.save()
         else:
-            self.dirtyTimer = Timer(5.0, self.save)
+            self.dirtyTimer = Timer(3.0, self.save)
             self.dirtyTimer.start()
 
     def listen(self):

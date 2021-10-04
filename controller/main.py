@@ -1,6 +1,6 @@
 import time
 import signal
-import os
+import os, sys, threading
 from subprocess import call
 from core import CoreInterface
 from usbserial import SerialInterface
@@ -18,7 +18,7 @@ class GracefulKiller:
         signal.signal(signal.SIGINT, self.exit_gracefully)
         signal.signal(signal.SIGTERM, self.exit_gracefully)
 
-    def exit_gracefully(self,signum, frame):
+    def exit_gracefully(self,signum=0, frame=0):
         self.kill_now = True
       
 
@@ -41,7 +41,7 @@ if __name__ == '__main__':
     serial = SerialInterface("ttyUSB")
 
     # CORE protocol
-    protocol = CoreInterface('/data/usb/playframe.csv', '/data/usb/stims/')
+    protocol = CoreInterface('/data/usb/', 'playframe.csv', 'stims/')
 
     #
     # SERIAL events binding
@@ -49,9 +49,8 @@ if __name__ == '__main__':
 
     @serial.on('connected')
     def con(ev, *args):
-        time.sleep(1)
-        serial.sendState(2)
-        serial.sendVolume(config.get("volume"))
+        time.sleep(0.5)
+        protocol.start()
 
     @serial.on('volup')
     def volup(ev, *args):
@@ -90,6 +89,12 @@ if __name__ == '__main__':
     # PROTOCOL events binding
     #
 
+    @protocol.on('ready')
+    def fn(ev, *args):
+        serial.sendProtocol(args[0])
+        serial.sendState(2)
+        serial.sendVolume(config.get("volume"))
+
     @protocol.on('playing')
     def fn(ev, *args):
         serial.sendState(3)
@@ -118,13 +123,23 @@ if __name__ == '__main__':
     def fn(ev, *args):
         serial.sendError(args[0])
 
+    @protocol.on('quit')
+    def fn(ev, *args):
+        killer.exit_gracefully()
+
+    # CATCH ERRORS
+    def excepthook(*args):
+        if len(args) > 0:
+            error = "- "+str(args[0].exc_type)+" -:"+str(args[0].exc_value)
+        else:
+            error = "- Fatal Error -: :sorry..."
+        protocol.emit('error', error)
+    threading.excepthook = excepthook
 
 
     # START
     serial.start()
-    protocol.start()
-
-
+    
     # WAIT until close
     while not killer.kill_now:
         time.sleep(0.2)

@@ -91,6 +91,10 @@ class SerialInterface (BaseInterface):
         if self.serial:
             self.serial.write( ('^S'+str(value)+'^').encode() )
 
+    def sendProtocol(self, value):
+        if self.serial:
+            self.serial.write( ('^D'+value+'^').encode() )
+
     def sendVolume(self, value):
         if self.serial:
             self.serial.write( ('^V'+str(value)+'^').encode() )
