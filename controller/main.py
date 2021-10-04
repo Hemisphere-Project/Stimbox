@@ -92,6 +92,7 @@ if __name__ == '__main__':
     @protocol.on('checking')
     def fn(ev, *args):
         serial.sendState(1)
+        time.sleep(0.1)
         serial.sendMedia(args[0])
 
     @protocol.on('ready')
