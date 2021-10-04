@@ -82,7 +82,6 @@ class CoreInterface (BaseInterface):
 
             try:
                 # RE-INIT
-                self.playbackStop()
                 self.emit("loading", "")
 
                 # RESET PATH
