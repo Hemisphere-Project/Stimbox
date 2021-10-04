@@ -83,7 +83,6 @@ class CoreInterface (BaseInterface):
             try:
                 # RE-INIT
                 self.playbackEnd()
-                self.emit("loading", "")
 
                 # RESET PATH
                 self.playframe_path = None

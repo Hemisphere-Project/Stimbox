@@ -91,13 +91,12 @@ if __name__ == '__main__':
 
     @protocol.on('loading')
     def fn(ev, *args):
+        if len(args) > 0:
+            serial.sendProtocol(args[0])
         serial.sendState(1)
-        time.sleep(0.1)
-        serial.sendMedia(args[0])
-
+    
     @protocol.on('ready')
     def fn(ev, *args):
-        serial.sendProtocol(args[0])
         serial.sendState(2)
         serial.sendVolume(config.get("volume"))
 

@@ -52,7 +52,6 @@ class SerialInterface (BaseInterface):
                     # Connect
                     self.serial = serial.Serial(self.port, 115200, timeout=.1)
                     self.log("connected to", self.port, "!")
-                    self.sendState(1)                 
                     self.emit('connected')
                     
                 except:
@@ -90,10 +89,12 @@ class SerialInterface (BaseInterface):
     def sendState(self, value):
         if self.serial:
             self.serial.write( ('^S'+str(value)+'^').encode() )
+            time.sleep(0.1)
 
     def sendProtocol(self, value):
         if self.serial:
             self.serial.write( ('^D'+value+'^').encode() )
+            time.sleep(0.1)
 
     def sendVolume(self, value):
         if self.serial:
@@ -110,3 +111,4 @@ class SerialInterface (BaseInterface):
     def sendError(self, value):
         if self.serial:
             self.serial.write( ('^E'+value+'^').encode() )
+            time.sleep(0.1)

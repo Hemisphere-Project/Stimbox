@@ -235,6 +235,7 @@ void recvWithStartEndMarkers()
           // Protocol
           else if (cmd == 'D')
             _protocol = input;
+            if (_state == HELLO) setMedia( _protocol );
 
           // Volume
           else if (cmd == 'V')
