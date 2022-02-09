@@ -231,7 +231,8 @@ class sound_trig_Thread(Thread):
             
             # Add 0 padding to improves sound quality (in case of very short sounds)
             padd_end = np.zeros((round(sample_rate*0.05), sound_data.shape[1]), dtype=self.core.sound_dtype) # add 50ms
-            isi -= 0.0626
+            # isi -= 0.0626  # Correspond au -0.5 sur v1 (mais isi 30ms trop court)
+            isi -= 0.0626 - 0.03
             sound_data = np.concatenate((sound_data, padd_end), axis=0)  
             
             try:
