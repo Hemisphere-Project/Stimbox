@@ -3,10 +3,13 @@ BASEPATH="$(dirname "$(readlink -f "$0")")"
 
 sudo pacman -S alsa-utils
 
+# alsa-utils 1.2.4-2
+
 # Allow saving alsactrl on read-only system
 rm -Rf /var/lib/alsa
 mkdir -p /data/var/alsa
 ln -sf /data/var/alsa /var/lib/alsa
+
 
 # Install x728 energy controller
 ln -sf "$BASEPATH/x728.service" /etc/systemd/system/
@@ -19,7 +22,9 @@ echo "## [x728] shutdown from x728
 " >> /boot/starter.txt
 fi
 
+
 # Install Stimbox controller
+pip install -r requirements.txt
 ln -sf "$BASEPATH/stimbox.service" /etc/systemd/system/
 ln -sf "$BASEPATH/stimbox" /usr/local/bin/
 

@@ -6,6 +6,7 @@ import os
 import soundfile as sf
 import sounddevice as sd
 import time
+import datetime
 import re
 
 import io
@@ -19,7 +20,7 @@ def is_RPI():
 if is_RPI():
     import RPi.GPIO as GPIO
 
-# import numpy as np
+import numpy as np
 import pandas as pd
 from threading import Thread, Lock
 
@@ -66,7 +67,8 @@ class CoreInterface (BaseInterface):
         self.stream = sd.OutputStream(  device = 0, # HifiBerry device
                                         samplerate = 44100, 
                                         channels=2, 
-                                        dtype=self.sound_dtype)
+                                        dtype=self.sound_dtype
+                                        )
 
         # List directories
         # protoFolders = [ p for p in next(os.walk(self.base_path))[1] if os.path.exists(os.path.join(p, self.playframe_file))]
@@ -213,11 +215,25 @@ class sound_trig_Thread(Thread):
             # self.core.log('Reading', row['Stimulus'], 'at index', index)
 
             stimpath = os.path.join(self.core.stim_path, row['Stimulus'] + '.wav')
+            # startTime = datetime.datetime.now()
+            
+            # Get Duration
+            # f = sf.SoundFile(stimpath)
+            # theoricalDuration = int(f.frames *1000 / f.samplerate)
+            
+            # Load file
             sound_data, sample_rate = sf.read(stimpath)
             sound_data = sound_data.astype(self.core.sound_dtype)
+            
+            # Prepare Trigger / ISI
             GPIO_trigOn = self.get_GPIO_bool(row['Trigger'])
             isi = round(row['ISI'] * 10**-3, 3)
-
+            
+            # Add 0 padding to improves sound quality (in case of very short sounds)
+            padd_end = np.zeros((round(sample_rate*0.05), sound_data.shape[1]), dtype=self.core.sound_dtype) # add 50ms
+            isi -= 0.0626
+            sound_data = np.concatenate((sound_data, padd_end), axis=0)  
+            
             try:
                 self.core.stream.start()
                 if is_RPI():
@@ -235,8 +251,15 @@ class sound_trig_Thread(Thread):
 
             if is_RPI():
                 GPIO.output(GPIO_trigOn, 0)
+
+            # effectiveDuration = int((datetime.datetime.now() - startTime).total_seconds() * 1000)
+            # print('Duration', effectiveDuration, theoricalDuration)
+            # self.core.log('isi theorical:', isi, ' // isi corrected:', isi-(effectiveDuration-theoricalDuration)/1000)
+            # time.sleep(isi-(effectiveDuration-theoricalDuration)/1000)
+
             self.core.log('isi:', isi)
             time.sleep(isi)
+
 
         if self.running():
             self.core.emit('progress', 100 )
