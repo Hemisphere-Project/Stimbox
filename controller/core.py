@@ -46,8 +46,7 @@ class CoreInterface (BaseInterface):
     # CORE init
     def  __init__(self, basePath, protoCsv, stimsPath):
         super(CoreInterface, self).__init__(None, "Core")
-        self._playing = False
-        self._paused = False
+        
         self.sound_trig_Thread = None
 
         self.base_path = basePath
@@ -62,17 +61,13 @@ class CoreInterface (BaseInterface):
 
     # CORE thread
     def listen(self):
+        
         if is_RPI():
             GPIO.setmode(GPIO.BOARD)
-        self.stream = sd.OutputStream(  device = 0, # HifiBerry device
-                                        samplerate = 44100, 
-                                        channels=2, 
-                                        dtype=self.sound_dtype
-                                        )
+            for i in self.parralelGPIO:
+                GPIO.setup(i, GPIO.OUT)
+                GPIO.output(i, GPIO.LOW)
 
-        # List directories
-        # protoFolders = [ p for p in next(os.walk(self.base_path))[1] if os.path.exists(os.path.join(p, self.playframe_file))]
-        # print(protoFolders)
 
         # CHECK PROTOCOL CSV
         while self.isRunning():
@@ -84,7 +79,7 @@ class CoreInterface (BaseInterface):
 
             try:
                 # RE-INIT
-                self.playbackEnd()
+                self.stop()
 
                 # RESET PATH
                 self.playframe_path = None
@@ -122,63 +117,58 @@ class CoreInterface (BaseInterface):
                 error = "- "+type(e).__name__.replace('Error', '')+" -"
                 error += ":"+re.sub(r'\[.*\] ', '', str(e))
                 self.emit('error', error)
-                time.sleep(2.0)
+                time.sleep(1.0)
         
 
         # CLOSE
-        self.playbackStop()
-        self.stream.close()
+        self.stop()
         self.emit('done')
 
 
     def playing(self):
-        return self._playing #could be a mutex ?
+        return self.sound_trig_Thread.playing() if self.sound_trig_Thread else False
 
 
-    def playbackStart(self):
-        if self.isRunning():
-            if not self.playing():
-                self.sound_trig_Thread = sound_trig_Thread(self)
-                self.sound_trig_Thread.start()
-                self._playing = True
-                self._paused = False
-                self.emit('playing')
+    def play(self):
+        if self.isRunning() and not self.playing():
+            self.sound_trig_Thread = sound_trig_Thread(self)
+            self.sound_trig_Thread.start()
 
 
-    def playbackPause(self):
-        self._paused = True
-        self.emit('paused')
+    def pause(self):
+        if self.sound_trig_Thread:
+            self.sound_trig_Thread._paused = True
+            self.emit('paused')
+            
 
-    def playbackResume(self):
-        self._paused = False
-        self.emit('resumed')
+    def resume(self):
+        if self.sound_trig_Thread:
+            self.sound_trig_Thread._paused = False
+            self.emit('resumed')
 
 
-    def playbackStop(self):
+    def stop(self):
         if self.sound_trig_Thread:
             self.sound_trig_Thread.stop()
+            self.emit('stopped')
+            self.sound_trig_Thread.join()
+            self.sound_trig_Thread = None
+        
 
-
-    def playbackEnd(self):
-        self.stream.abort()
-        self._playing = False
-        self._paused = False
 
 
 # Audio Trig thread
 #
 class sound_trig_Thread(Thread):
+
     def __init__(self, core):
         Thread.__init__(self)
+        self._playing = False
+        self._paused = False
+        
         self.lock = Lock()
-        self._running = False
         self.current = 0
         self.core = core
-
-        if is_RPI():
-            for i in self.core.parralelGPIO:
-                GPIO.setup(i, GPIO.OUT)
-                GPIO.output(i, GPIO.LOW)
 
     def get_GPIO_bool(self, trig_value):
         GPIO_trigOn = [a*b for a,b in zip(self.core.parralelGPIO, bitfield(trig_value))]
@@ -186,93 +176,159 @@ class sound_trig_Thread(Thread):
         # print(bitfield(trig_value), GPIO_trigOn)
         return GPIO_trigOn
 
-    def running(self):
-        with self.lock:
-            return self._running
+    def playing(self):
+        return self._playing
+
+    def paused(self):
+        return self._paused and self._playing
+    
+    def stop(self):
+        self._playing = False
+        self.stream.close()
 
 
+    # Accurate wait for target time (using time.sleep + busy loop for last millisecond)
+    #
+    def wait(self, targetDate, txt=''):
+        while True:
+            delta = (targetDate - datetime.datetime.now()).total_seconds() * 1000
+            if delta <= 0.05:
+                return True
+            time.sleep( 0.1*(delta > 110) + 0.002*(delta > 3) )
+            if not self.playing():
+                return False
+            
+
+
+    # thread Run
+    #
     def run(self):
-        with self.lock:
-            self._running = True
+        
+        self.stream = sd.OutputStream(  device = 0, # HifiBerry device
+                                        samplerate = 44100, 
+                                        channels=2, 
+                                        dtype=self.core.sound_dtype
+                                        )
+        
+        self._playing = True
+        self._paused = False
+        
+        if is_RPI():
+            GPIO.output(self.core.parralelGPIO, GPIO.LOW)
 
         nb_items = self.core.playframe.shape[0]
         
-        for index, row in self.core.playframe.iterrows():   #playframe.iloc[self.current:]
+        self.core.emit('playing')
+        
+        startTime = datetime.datetime.now()
+        endTime = datetime.datetime.now()
+        
+        for index, row in self.core.playframe.iterrows():
             
-            if self.core._paused:
-                self.core.emit('paused-at', index)
-
-            while self.core._paused and self.running():
-                time.sleep(.1)
-
-            if not self.running():
-                self.current = index
-                self.core.emit('stopped-at', index)
-                break
-            
+            # Progress
             self.core.emit('progress', int(index*100/nb_items) )
             
-            # self.core.log('Reading', row['Stimulus'], 'at index', index)
-
-            stimpath = os.path.join(self.core.stim_path, row['Stimulus'] + '.wav')
-            # startTime = datetime.datetime.now()
+            # next Trigger
+            GPIO_trigOn = self.get_GPIO_bool(row['Trigger'])     
             
-            # Get Duration
-            # f = sf.SoundFile(stimpath)
-            # theoricalDuration = int(f.frames *1000 / f.samplerate)
-            
-            # Load file
+            # next Sample
+            stimpath = os.path.join(self.core.stim_path, row['Stimulus'] + '.wav')       
             sound_data, sample_rate = sf.read(stimpath)
             sound_data = sound_data.astype(self.core.sound_dtype)
+            audio_duration = sound_data.shape[0] / sample_rate
             
-            # Prepare Trigger / ISI
-            GPIO_trigOn = self.get_GPIO_bool(row['Trigger'])
-            isi = round(row['ISI'] * 10**-3, 3)
+            # pad with silence
+            # padd_end = np.zeros(( round(sample_rate * 0.01) , sound_data.shape[1]), dtype=self.core.sound_dtype) 
+            # sound_data = np.concatenate((sound_data, padd_end), axis=0) 
             
-            # Add 0 padding to improves sound quality (in case of very short sounds)
-            padd_end = np.zeros((round(sample_rate*0.05), sound_data.shape[1]), dtype=self.core.sound_dtype) # add 50ms
-            # isi -= 0.0626  # Correspond au -0.5 sur v1 (mais isi 30ms trop court)
-            isi -= 0.0626 - 0.03
-            sound_data = np.concatenate((sound_data, padd_end), axis=0)  
+            # next ISI
+            isi_duration = round(row['ISI'] * 10**-3, 3) 
             
+            # ----
+            
+            # let previous ISI terminate
+            self.wait(endTime, 'end')
+            # print('End: ellpased', (datetime.datetime.now() - startTime).total_seconds() * 1000)
+            
+            # Check accuracy
+            lastEffectiveDuration = (datetime.datetime.now() - startTime).total_seconds() * 1000
+            lastWantedDuration = (endTime-startTime).total_seconds() * 1000
+            print('Cycle Accuracy: ')
+            print('\tLast cycle duration (real/target): ', round(lastEffectiveDuration, 2), '/', round(lastWantedDuration,2))
+            print('\tError:', round(lastEffectiveDuration-lastWantedDuration, 2) )
+            
+            # Pause 
+            if self.paused():
+                self.core.emit('paused-at', index)
+                while self.paused():
+                    time.sleep(.1)
+                    
+            # check Stop
+            if not self.playing(): 
+                break  
+            
+            # ----
+            
+            # Start next sample timing
+            startTime = datetime.datetime.now()
+            audioTime = startTime + datetime.timedelta(milliseconds= audio_duration*1000)
+            endTime = audioTime + datetime.timedelta(milliseconds= isi_duration*1000)
+            
+            self.core.emit('playing-at', row['Stimulus'], index)
+            
+            # Play Sample
             try:
-                self.core.stream.start()
+                # Start Stream
+                self.stream.start()
+                
+                # Trigger GPIO
                 if is_RPI():
                     GPIO.output(GPIO_trigOn,1)
-                self.core.emit('playing-at', row['Stimulus'], index)
-                self.core.stream.write(sound_data)
-                self.core.stream.stop()
+                    
+                # Play audio
+                self.stream.write(sound_data)
+
+                # Wait for audio duration : stream.write() might return before audio buffer is completely flushed
+                self.wait(audioTime, 'audio')
+                # print('Audio: ellpased', (datetime.datetime.now() - startTime).total_seconds() * 1000)
+                
+                # UnTrigger GPIO
+                if is_RPI():
+                    GPIO.output(GPIO_trigOn, 0)
+                    
+                # Stop stream (with 20ms safety)
+                if isi_duration > 0.02:
+                    time.sleep(0.02)
+                self.stream.stop()
+                
+                
             except sd.PortAudioError:
-                self.emit('error', '- PortAudio -', sd.PortAudioError)
-                time.sleep(2.0)
-                self.playbackEnd()
-                return
+                if self._playing:
+                    self.core.emit('error', '- PortAudio -', sd.PortAudioError)
+                    self._playing = False
+                break
+            
             except :
-                return
-
-            if is_RPI():
-                GPIO.output(GPIO_trigOn, 0)
-
-            # effectiveDuration = int((datetime.datetime.now() - startTime).total_seconds() * 1000)
-            # print('Duration', effectiveDuration, theoricalDuration)
-            # self.core.log('isi theorical:', isi, ' // isi corrected:', isi-(effectiveDuration-theoricalDuration)/1000)
-            # time.sleep(isi-(effectiveDuration-theoricalDuration)/1000)
-
-            self.core.log('isi:', isi)
-            time.sleep(isi)
-
-
-        if self.running():
+                self._playing = False
+                break
+            
+            
+        # Still playing: let last sample/isi terminate
+        if self.playing():
             self.core.emit('progress', 100 )
-
-        self.core.playbackEnd()
-        self.core.emit('stopped')
-
+            self.wait(endTime, 'end')
+         
+        # Was interrupted   
+        else:
+            self.current = index
+            self.core.emit('stopped-at', index)
+        
+        # End    
+        self.stream.close()
+        if is_RPI():
+            GPIO.output(self.core.parralelGPIO, GPIO.LOW)
+        self._playing = False
+        self._paused = False
+        self.core.emit('done')
         
         
-
-    def stop(self):
-        with self.lock:
-            self._running = False
-
-    

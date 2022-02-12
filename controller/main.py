@@ -70,19 +70,19 @@ if __name__ == '__main__':
 
     @serial.on('play')
     def play(ev, *args):
-        protocol.playbackStart()
+        protocol.play()
 
     @serial.on('resume')
     def play(ev, *args):
-        protocol.playbackResume()
+        protocol.resume()
 
     @serial.on('pause')
     def play(ev, *args):
-        protocol.playbackPause()
+        protocol.pause()
 
     @serial.on('stop')
     def play(ev, *args):
-        protocol.playbackStop()
+        protocol.stop()
 
 
     #

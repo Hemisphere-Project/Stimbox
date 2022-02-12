@@ -158,7 +158,8 @@ void setState(State value) {
   {
     header(TFT_DARKGREEN);
     setStatus("playing");
-    setCtrl("PAUSE", TFT_DARKGREY);
+    // setCtrl("PAUSE", TFT_DARKGREY);
+    setCtrl("STOP", TFT_DARKGREY);
   }
   else if (_state == PAUSE) 
   {
@@ -295,12 +296,13 @@ void loop() {
   if (M5.BtnA.wasPressed()) 
   {
     if (_state == STOP) Serial.println("play");
-    else if (_state == PLAY) Serial.println("pause");
+    else if (_state == PLAY) Serial.println("stop");
+    // else if (_state == PLAY) Serial.println("pause");
     else if (_state == PAUSE) Serial.println("resume");
   }
-  else if (M5.BtnA.pressedFor(500,500)) {
-    if (_state == PLAY || _state == PAUSE) Serial.println("stop");
-  }
+  // else if (M5.BtnA.pressedFor(500,500)) {
+  //   if (_state == PLAY || _state == PAUSE) Serial.println("stop");
+  // }
   
   if (M5.BtnB.wasPressed() || M5.BtnB.pressedFor(300,150) ) {
     Serial.println("voldown");
