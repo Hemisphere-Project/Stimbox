@@ -283,13 +283,14 @@ class sound_trig_Thread(Thread):
             
             # Play Sample
             try:
+                
                 # Start Stream
                 self.stream.start()
                 
                 # Trigger GPIO
                 if is_RPI():
                     GPIO.output(GPIO_trigOn,1)
-                    
+
                 # Play audio
                 self.stream.write(sound_data)
 
