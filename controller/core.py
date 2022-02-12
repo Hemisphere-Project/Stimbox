@@ -150,9 +150,9 @@ class CoreInterface (BaseInterface):
     def stop(self):
         if self.sound_trig_Thread:
             self.sound_trig_Thread.stop()
-            self.emit('stopped')
             self.sound_trig_Thread.join()
             self.sound_trig_Thread = None
+            self.emit('stopped')
         
 
 
@@ -221,13 +221,11 @@ class sound_trig_Thread(Thread):
         self.core.emit('playing')
         
         startTime = datetime.datetime.now()
+        stopTime = datetime.datetime.now()
         endTime = datetime.datetime.now()
         
         for index, row in self.core.playframe.iterrows():
-            
-            # Progress
-            self.core.emit('progress', int(index*100/nb_items) )
-            
+                        
             # next Trigger
             GPIO_trigOn = self.get_GPIO_bool(row['Trigger'])     
             
@@ -246,16 +244,22 @@ class sound_trig_Thread(Thread):
             
             # ----
             
+            # stop stream
+            self.wait(stopTime, 'stop')
+            self.stream.stop()
+            
+            # Progress
+            self.core.emit('progress', int(index*100/nb_items) )
+            
             # let previous ISI terminate
             self.wait(endTime, 'end')
-            # print('End: ellpased', (datetime.datetime.now() - startTime).total_seconds() * 1000)
             
             # Check accuracy
             lastEffectiveDuration = (datetime.datetime.now() - startTime).total_seconds() * 1000
             lastWantedDuration = (endTime-startTime).total_seconds() * 1000
             print('Cycle Accuracy: ')
-            print('\tLast cycle duration (real/target): ', round(lastEffectiveDuration, 2), '/', round(lastWantedDuration,2))
-            print('\tError:', round(lastEffectiveDuration-lastWantedDuration, 2) )
+            print('\tLast cycle duration (real/target): ', round(lastEffectiveDuration, 2), '/', round(lastWantedDuration,2), 'ms')
+            print('\tError:', round(lastEffectiveDuration-lastWantedDuration, 2), 'ms' )
             
             # Pause 
             if self.paused():
@@ -271,8 +275,9 @@ class sound_trig_Thread(Thread):
             
             # Start next sample timing
             startTime = datetime.datetime.now()
-            audioTime = startTime + datetime.timedelta(milliseconds= audio_duration*1000)
-            endTime = audioTime + datetime.timedelta(milliseconds= isi_duration*1000)
+            audioTime = startTime + datetime.timedelta(milliseconds= audio_duration*1000)   # end of audio: time to turn off GPIO
+            stopTime = audioTime + datetime.timedelta(milliseconds= isi_duration*1000-10)   # end of audio+ISI-10ms: stop audio stream
+            endTime = audioTime + datetime.timedelta(milliseconds= isi_duration*1000)       # end of audio+ISI: start next sample
             
             self.core.emit('playing-at', row['Stimulus'], index)
             
@@ -290,17 +295,10 @@ class sound_trig_Thread(Thread):
 
                 # Wait for audio duration : stream.write() might return before audio buffer is completely flushed
                 self.wait(audioTime, 'audio')
-                # print('Audio: ellpased', (datetime.datetime.now() - startTime).total_seconds() * 1000)
                 
                 # UnTrigger GPIO
                 if is_RPI():
-                    GPIO.output(GPIO_trigOn, 0)
-                    
-                # Stop stream (with 20ms safety)
-                if isi_duration > 0.02:
-                    time.sleep(0.02)
-                self.stream.stop()
-                
+                    GPIO.output(GPIO_trigOn, 0)                
                 
             except sd.PortAudioError:
                 if self._playing:
@@ -317,6 +315,7 @@ class sound_trig_Thread(Thread):
         if self.playing():
             self.core.emit('progress', 100 )
             self.wait(endTime, 'end')
+            self.stream.stop()
          
         # Was interrupted   
         else:
