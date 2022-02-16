@@ -271,6 +271,7 @@ void recvWithStartEndMarkers()
 
 // SETUP
 //
+int bootTime = 26000;
 
 void setup() 
 {
@@ -282,6 +283,10 @@ void setup()
   delay(100);
   
   setState(BOOT);
+  
+  // Progress Bar
+  M5.Lcd.fillRect(40, 160, 240, 10, TFT_BLACK);
+  
 }
 
 // LOOP
@@ -293,6 +298,15 @@ void loop() {
 
   recvWithStartEndMarkers();
 
+  // BOOT progress Bar
+  if (_state == BOOT) {
+    int progress = millis()*100/bootTime;
+    if (progress < 100)
+      M5.Lcd.progressBar(40, 160, 239, 10, progress);
+    return;
+  }
+
+  // Btn A: Play / Stop
   if (M5.BtnA.wasPressed()) 
   {
     if (_state == STOP) Serial.println("play");
@@ -304,10 +318,12 @@ void loop() {
   //   if (_state == PLAY || _state == PAUSE) Serial.println("stop");
   // }
   
+  // Btn B: Volume -
   if (M5.BtnB.wasPressed() || M5.BtnB.pressedFor(300,150) ) {
     Serial.println("voldown");
   }
 
+  // Btn C: Volume +
   if (M5.BtnC.wasPressed() || M5.BtnC.pressedFor(300,150) ) {
     Serial.println("volup");
   }
