@@ -170,7 +170,7 @@ void setState(State value) {
   else if (_state == EXIT) 
   {
     M5.Lcd.clear(TFT_BLACK);
-    header(TFT_CYAN);
+    header(TFT_RED);
     setStatus("STiMBOX exiting..");
   }  
   else if (_state == OFF) 
