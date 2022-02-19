@@ -298,7 +298,7 @@ void loop() {
   // BOOT progress Bar
   if (_state == BOOT) {
     int progress = millis()*100/bootTime;
-    if (progress > 4 && progress < 100)
+    if (progress > 4 && progress <= 100)
       M5.Lcd.progressBar(40, 160, 239, 10, progress);
     return;
   }
