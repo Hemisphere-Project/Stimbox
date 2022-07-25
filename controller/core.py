@@ -257,6 +257,7 @@ class sound_trig_Thread(Thread):
             # Check accuracy
             lastEffectiveDuration = (datetime.datetime.now() - startTime).total_seconds() * 1000
             lastWantedDuration = (endTime-startTime).total_seconds() * 1000
+            startTime = datetime.datetime.now()
             print('Cycle Accuracy: ')
             print('\tLast cycle duration (real/target): ', round(lastEffectiveDuration, 2), '/', round(lastWantedDuration,2), 'ms')
             print('\tError:', round(lastEffectiveDuration-lastWantedDuration, 2), 'ms' )
@@ -274,7 +275,6 @@ class sound_trig_Thread(Thread):
             # ----
             
             # Start next sample timing
-            startTime = datetime.datetime.now()
             audioTime = startTime + datetime.timedelta(milliseconds= audio_duration*1000)   # end of audio: time to turn off GPIO
             stopTime = audioTime + datetime.timedelta(milliseconds= isi_duration*1000-10)   # end of audio+ISI-10ms: stop audio stream
             endTime = audioTime + datetime.timedelta(milliseconds= isi_duration*1000)       # end of audio+ISI: start next sample
