@@ -257,9 +257,13 @@ class sound_trig_Thread(Thread):
             # Check accuracy
             lastEffectiveDuration = (datetime.datetime.now() - startTime).total_seconds() * 1000
             lastWantedDuration = (endTime-startTime).total_seconds() * 1000
-            print('Cycle Accuracy: ')
-            print('\tLast cycle duration (real/target): ', round(lastEffectiveDuration, 2), '/', round(lastWantedDuration,2), 'ms')
-            print('\tError:', round(lastEffectiveDuration-lastWantedDuration, 2), 'ms' )
+            
+            # Start next sample timing
+            startTime = datetime.datetime.now()
+            audioTime = startTime + datetime.timedelta(milliseconds= audio_duration*1000)   # end of audio: time to turn off GPIO
+            stopTime = audioTime + datetime.timedelta(milliseconds= isi_duration*1000-10)   # end of audio+ISI-10ms: stop audio stream
+            endTime = audioTime + datetime.timedelta(milliseconds= isi_duration*1000)       # end of audio+ISI: start next sample
+            
             
             # Pause 
             if self.paused():
@@ -270,15 +274,7 @@ class sound_trig_Thread(Thread):
             # check Stop
             if not self.playing(): 
                 break  
-            
-            # ----
-            
-            # Start next sample timing
-            startTime = datetime.datetime.now()
-            audioTime = startTime + datetime.timedelta(milliseconds= audio_duration*1000)   # end of audio: time to turn off GPIO
-            stopTime = audioTime + datetime.timedelta(milliseconds= isi_duration*1000-10)   # end of audio+ISI-10ms: stop audio stream
-            endTime = audioTime + datetime.timedelta(milliseconds= isi_duration*1000)       # end of audio+ISI: start next sample
-            
+
             self.core.emit('playing-at', row['Stimulus'], index)
             
             # Play Sample
@@ -295,10 +291,12 @@ class sound_trig_Thread(Thread):
 
                 # Wait for audio duration : stream.write() might return before audio buffer is completely flushed
                 self.wait(audioTime, 'audio')
+
+                
                 
                 # UnTrigger GPIO
                 if is_RPI():
-                    GPIO.output(GPIO_trigOn, 0)                
+                    GPIO.output(GPIO_trigOn, 0)           
                 
             except sd.PortAudioError:
                 if self._playing:
@@ -309,6 +307,11 @@ class sound_trig_Thread(Thread):
             except :
                 self._playing = False
                 break
+            
+            # Print cycle accuracy
+            print('Cycle Accuracy: ')
+            print('\tLast cycle duration (real/target): ', round(lastEffectiveDuration, 2), '/', round(lastWantedDuration,2), 'ms')
+            print('\tError:', round(lastEffectiveDuration-lastWantedDuration, 2), 'ms' )     
             
             
         # Still playing: let last sample/isi terminate
