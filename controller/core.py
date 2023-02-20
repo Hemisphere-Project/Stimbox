@@ -204,7 +204,7 @@ class sound_trig_Thread(Thread):
     #
     def run(self):
         
-        self.stream = sd.OutputStream(  device = 0, # HifiBerry device
+        self.stream = sd.OutputStream(  device = 0,             # HifiBerry device : 0 if internal blacklisted, 2 otherwise
                                         samplerate = 44100, 
                                         channels=2, 
                                         dtype=self.core.sound_dtype
@@ -231,8 +231,12 @@ class sound_trig_Thread(Thread):
             
             # next Sample
             stimpath = os.path.join(self.core.stim_path, row['Stimulus'] + '.wav')       
-            sound_data, sample_rate = sf.read(stimpath)
-            sound_data = sound_data.astype(self.core.sound_dtype)
+            sound_data, sample_rate = sf.read(stimpath, dtype=self.core.sound_dtype, always_2d=True)
+            
+            # Mono to stereo
+            if sound_data.shape[1] == 1:
+                sound_data = np.repeat(sound_data, 2, axis=1)
+                
             audio_duration = sound_data.shape[0] / sample_rate
             
             # pad with silence
@@ -255,11 +259,11 @@ class sound_trig_Thread(Thread):
             self.wait(endTime, 'end')
             
             # Check accuracy
-            lastEffectiveDuration = (datetime.datetime.now() - startTime).total_seconds() * 1000
-            lastWantedDuration = (endTime-startTime).total_seconds() * 1000
-            print('Cycle Accuracy: ')
-            print('\tLast cycle duration (real/target): ', round(lastEffectiveDuration, 2), '/', round(lastWantedDuration,2), 'ms')
-            print('\tError:', round(lastEffectiveDuration-lastWantedDuration, 2), 'ms' )
+            # lastEffectiveDuration = (datetime.datetime.now() - startTime).total_seconds() * 1000
+            # lastWantedDuration = (endTime-startTime).total_seconds() * 1000
+            # print('Cycle Accuracy: ')
+            # print('\tLast cycle duration (real/target): ', round(lastEffectiveDuration, 2), '/', round(lastWantedDuration,2), 'ms')
+            # print('\tError:', round(lastEffectiveDuration-lastWantedDuration, 2), 'ms' )
             
             # Pause 
             if self.paused():
