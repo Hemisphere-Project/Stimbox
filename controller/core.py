@@ -204,7 +204,7 @@ class sound_trig_Thread(Thread):
     #
     def run(self):
         
-        self.stream = sd.OutputStream(  device = 2, # HifiBerry device
+        self.stream = sd.OutputStream(  device = 0, # HifiBerry device
                                         samplerate = 44100, 
                                         channels=2, 
                                         dtype=self.core.sound_dtype
