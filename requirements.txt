@@ -1,7 +1,7 @@
 numpy==1.20.2
 pandas==1.2.3
-SoundFile==0.10.3.post1
-sounddevice==0.4.1
+SoundFile==0.9.0
+sounddevice==0.3.8
 RPi.GPIO==0.7.0
 pymitter==0.3.0
 termcolor==1.1.0

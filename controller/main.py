@@ -7,7 +7,11 @@ from usbserial import SerialInterface
 from config import ConfigInterface
 
 # STATE record
-# { 0:BOOT, 1:HELLO, 2:STOP, 3:PLAY, 4:PAUSE, 5:EXIT, 6:OFF, 7:ERROR};
+# { 0:BOOT, 1:HELLO, 2:STOP, 3:PLAY, 4:PAUSE, 5:EXIT, 6:OFF, 7:ERROR}; 
+
+
+data_path = '/data/stimbox'
+usb_path = '/data/usb'
 
 
 # EXIT handler
@@ -31,17 +35,17 @@ if __name__ == '__main__':
     killer = GracefulKiller()
 
     # LOCAL storage 
-    if not os.path.exists('/data/stimbox'):
-        os.makedirs('/data/stimbox')
+    if not os.path.exists(data_path):
+        os.makedirs(data_path)
 
     # CONFIG
-    config = ConfigInterface('/data/stimbox/config.json')
+    config = ConfigInterface(data_path+'/config.json')
 
     # SERIAL port to connect M5screen
     serial = SerialInterface("ttyUSB")
 
     # CORE protocol
-    protocol = CoreInterface('/data/usb/', 'playframe.csv', 'stims/')
+    protocol = CoreInterface(usb_path, 'playframe.csv', 'stims/')
 
     #
     # SERIAL events binding

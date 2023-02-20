@@ -20,7 +20,8 @@ class ConfigInterface (BaseInterface):
             config = {}
             with open(self._path, 'r') as f:
                 config = json.load(f)
-            self.values = {**self.values, **config}
+            # self.values = {**self.values, **config}
+            self.values.update(config)
             self.log("loaded", self.values)
             
 
