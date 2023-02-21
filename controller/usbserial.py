@@ -87,6 +87,7 @@ class SerialInterface (BaseInterface):
     
 
     def sendState(self, value):
+        print("sendState", value)
         if self.serial:
             self.serial.write( ('^S'+str(value)+'^').encode() )
             time.sleep(0.1)

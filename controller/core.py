@@ -333,6 +333,6 @@ class sound_trig_Thread(Thread):
             GPIO.output(self.core.parralelGPIO, GPIO.LOW)
         self._playing = False
         self._paused = False
-        self.core.emit('done')
+        self.core.emit('stopped')
         
         

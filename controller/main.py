@@ -121,7 +121,6 @@ if __name__ == '__main__':
         serial.sendState(3)
 
     @protocol.on('stopped')
-    @protocol.on('done')
     def fn(ev, *args):
         serial.sendState(2)    
 
