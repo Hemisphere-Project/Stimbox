@@ -159,7 +159,7 @@ if __name__ == '__main__':
     serial.sendState(5)
     config.flush()
     time.sleep(0.5)
-    serial.sendState(6)
+    serial.sendState(6, True)
 
     serial.quit()
     protocol.quit()

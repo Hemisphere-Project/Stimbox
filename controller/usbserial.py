@@ -15,6 +15,7 @@ class SerialInterface (BaseInterface):
         self.maxRetry = maxRetry
         
         self._hardClear = True
+        self._shutdown = False
 
 
     # SERIAL receiver THREAD
@@ -86,8 +87,11 @@ class SerialInterface (BaseInterface):
 
     
 
-    def sendState(self, value):
-        print("sendState", value)
+    def sendState(self, value, final=False):
+        # print("sendState", value)
+        if self._shutdown: return
+        if final: self._shutdown = True
+        
         if self.serial:
             self.serial.write( ('^S'+str(value)+'^').encode() )
             time.sleep(0.1)
