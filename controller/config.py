@@ -23,6 +23,8 @@ class ConfigInterface (BaseInterface):
             # self.values = {**self.values, **config}
             self.values.update(config)
             self.log("loaded", self.values)
+            for key in self.values:
+                self.emit(key, self.values[key])
             
 
 

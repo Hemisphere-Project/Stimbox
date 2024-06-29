@@ -146,6 +146,8 @@ if __name__ == '__main__':
         time.sleep(2.0)
     threading.excepthook = excepthook
 
+    # APPLY config
+    call( ("amixer sset 'Digital' "+str(config.get("volume"))+"%").split(" ") )
 
     # START
     serial.start()
