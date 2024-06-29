@@ -8,6 +8,7 @@ import sounddevice as sd
 import time
 import datetime
 import re
+import glob
 
 import io
 def is_RPI():
@@ -50,6 +51,7 @@ class CoreInterface (BaseInterface):
         self.sound_trig_Thread = None
 
         self.base_path = basePath
+        self.playframe_pattern = protoCsv
         self.playframe_file = protoCsv
         self.playframe_path = None
         self.stim_folder = stimsPath
@@ -86,12 +88,22 @@ class CoreInterface (BaseInterface):
                 self.stim_path = None
 
                 # SEARCH PROTOCOL
-                protoFolders = [ p for p in os.listdir(self.base_path) if os.path.exists(os.path.join(self.base_path, p, self.playframe_file)) ]
+                searchDirs = [subdir for subdir in os.listdir(self.base_path) if os.path.isdir(os.path.join(self.base_path, subdir))] # search sub folders
+                searchDirs.insert(0, '') # search root folder
+                
+                protoFolders = []
+                for p in searchDirs:
+                    for f in glob.glob(os.path.join(self.base_path, p, self.playframe_pattern)): 
+                        protoFolders.append(p)
+                    
                 if len(protoFolders) == 0:
-                    raise UsbDriveError("Can't find folder:containing '"+self.playframe_file+"'")
+                    raise UsbDriveError("Can't find folder:containing '"+self.playframe_pattern+"'")
                 elif len(protoFolders) > 1:
                     raise UsbDriveError("Multiple protocol found.:only one protocol allowed per key !")
                 
+                # FIND ACTUAL FILE
+                self.playframe_file = glob.glob(os.path.join(self.base_path, protoFolders[0], self.playframe_pattern))[0].split('/')[-1]
+
                 # LOAD PROTOCOL
                 self.playframe_path = os.path.join(self.base_path, protoFolders[0], self.playframe_file)
                 self.playframe = pd.read_csv(self.playframe_path)

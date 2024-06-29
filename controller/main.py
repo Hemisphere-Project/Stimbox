@@ -45,7 +45,7 @@ if __name__ == '__main__':
     serial = SerialInterface("ttyUSB")
 
     # CORE protocol
-    protocol = CoreInterface(usb_path, 'playframe.csv', 'stims/')
+    protocol = CoreInterface(usb_path, 'playframe*.csv', 'stims/')
 
     #
     # SERIAL events binding
