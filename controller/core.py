@@ -42,7 +42,8 @@ class UsbDriveError(Exception):
 #
 class CoreInterface (BaseInterface):
 
-    parralelGPIO = [16,15,18,19,22,21,24,23]
+    # parralelGPIO = [16,15,18,19,22,21,24,23]      # Reverse endian
+    parralelGPIO = [23,24,21,22,19,18,15,16]        # VALID endian
 
     # CORE init
     def  __init__(self, basePath, protoCsv, stimsPath):
