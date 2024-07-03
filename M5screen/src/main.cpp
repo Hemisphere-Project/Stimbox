@@ -137,7 +137,8 @@ void setState(State value) {
 
   if (_state == BOOT) {
     M5.Lcd.clear(TFT_BLACK);
-    setStatus("STiMBOX starting..");
+    header(TFT_DARKGREEN);
+    setStatus("starting..");
   }
 
   else if (_state == HELLO) {
@@ -271,7 +272,7 @@ void recvWithStartEndMarkers()
 
 // SETUP
 //
-int bootTime = 26000;
+int bootTime = 14000;
 
 void setup() 
 {
